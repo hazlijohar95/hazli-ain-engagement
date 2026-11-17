@@ -1,0 +1,14 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Hazli & Ain//Engagement//EN
+CALSCALE:GREGORIAN
+BEGIN:VEVENT
+UID:engagement-2027-01-31@hazli-ain
+DTSTAMP:20261117T153946Z
+DTSTART;VALUE=DATE:20270131
+DTEND;VALUE=DATE:20270201
+SUMMARY:Hazli & Ain · Engagement
+DESCRIPTION:The engagement of Mohamad Hazli bin Johar & Nurul Ain Izzaty binti Sallehudin.
+LOCATION:De.Wan 1958 by Chef Wan\, F1 & F6\, Level 1\, Bangsar Shopping Centre\, 285 Jalan Maarof\, Bangsar\, 59000 Kuala Lumpur
+END:VEVENT
+END:VCALENDAR
