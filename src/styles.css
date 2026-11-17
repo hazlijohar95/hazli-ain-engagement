@@ -2268,8 +2268,20 @@ html[data-cover] {
   margin-top: 22px;
 }
 
+.cover-stage {
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  margin-top: 18px;
+  min-height: 92px;
+}
+
+.cover-stage > * {
+  grid-area: 1 / 1;
+}
+
 .cover-names {
-  margin: 18px 0 0;
+  margin: 0;
   font-weight: 400;
 }
 
@@ -2329,8 +2341,7 @@ html[data-cover] {
 }
 
 .cover-open {
-  align-self: stretch;
-  margin-top: 40px;
+  justify-self: stretch;
 }
 
 .cover-note {
@@ -2344,9 +2355,21 @@ html[data-cover] {
   transform: rotate(-70deg);
 }
 
-/* Drawn by hand, in order: the heart is sketched and filled, the names are written letter by letter,
-   a running stitch sews in under them, then the button and a doodled arrow arrive. Nothing
-   starts until the handwriting font is in ([data-play]). */
+/* The tap comes first (it is what lets sound play), so the sealed card is all that greets the guest:
+   the heart is sketched and filled, "You're invited" arrives, then the button and a doodled arrow.
+   After the tap the button clears, the names are written letter by letter where it stood, and a
+   running stitch sews in under them. Nothing starts until the handwriting font is in ([data-play]). */
+.cover[data-state="shown"] .cover-script,
+.cover[data-state="shown"] .cover-stitch {
+  opacity: 0;
+}
+
+.cover:not([data-state="shown"]) :is(.cover-open, .cover-note) {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms var(--ease-out);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .cover-heart-line {
     stroke-dasharray: 1 1;
@@ -2368,6 +2391,7 @@ html[data-cover] {
     stroke-dashoffset: 1;
   }
 
+  /* The sealed card. */
   .cover[data-play="true"] .cover-heart-line {
     animation: cover-draw 850ms cubic-bezier(0.45, 0, 0.25, 1) 150ms forwards;
   }
@@ -2380,20 +2404,25 @@ html[data-cover] {
   .cover[data-play="true"] .cover-tag {
     animation: cover-rise 400ms var(--ease-out) 600ms both;
   }
-  .cover[data-play="true"] .cover-ink {
-    animation: cover-write var(--d) cubic-bezier(0.35, 0, 0.45, 1) calc(var(--write-at) + var(--t)) forwards;
+  .cover[data-play="true"][data-state="shown"] .cover-open {
+    animation: cover-pop 450ms var(--ease-out) 1000ms both;
   }
-  .cover[data-play="true"] .cover-stitch-sew {
-    animation: cover-draw 650ms var(--ease-out) calc(var(--written) + 80ms) forwards;
-  }
-  .cover[data-play="true"] .cover-open {
-    animation: cover-pop 450ms var(--ease-out) calc(var(--written) + 450ms) both;
-  }
-  .cover[data-play="true"] .cover-note {
-    animation: cover-fill 1ms linear calc(var(--written) + 800ms) forwards;
+  .cover[data-play="true"][data-state="shown"] .cover-note {
+    animation: cover-fill 1ms linear 1350ms forwards;
   }
   .cover[data-play="true"] .cover-arrow path {
-    animation: cover-draw 450ms var(--ease-out) calc(var(--written) + 800ms) forwards;
+    animation: cover-draw 450ms var(--ease-out) 1350ms forwards;
+  }
+
+  /* After the tap. */
+  .cover:not([data-state="shown"]) :is(.cover-open, .cover-note) {
+    animation: cover-out 160ms var(--ease-out) forwards;
+  }
+  .cover:not([data-state="shown"]) .cover-ink {
+    animation: cover-write var(--d) cubic-bezier(0.35, 0, 0.45, 1) calc(var(--write-at) + var(--t)) forwards;
+  }
+  .cover:not([data-state="shown"]) .cover-stitch-sew {
+    animation: cover-draw 650ms var(--ease-out) calc(var(--written) + 80ms) forwards;
   }
 
   /* Opening: the card lifts off the page like a sheet pulled from an envelope. */
@@ -2436,6 +2465,13 @@ html[data-cover] {
     opacity: 1;
     transform: none;
     filter: none;
+  }
+}
+
+@keyframes cover-out {
+  to {
+    opacity: 0;
+    transform: scale(0.96);
   }
 }
 

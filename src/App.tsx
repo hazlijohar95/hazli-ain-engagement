@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { TabBar } from "./components/Chrome";
-import { Cover } from "./components/Cover";
+import { COVER_WRITING_MS, Cover, type CoverState } from "./components/Cover";
 import { Closing, Details, Hero, Rsvp, Wishes } from "./components/Sections";
 import { CalendarSheet, RsvpSheet, WishSheet } from "./components/Sheets";
 import { loadRsvp, prefersReducedMotion, type SavedRsvp } from "./lib/hooks";
 import { GESTURES, MusicBox } from "./lib/music";
-import { listenForTaps, setSoundsEnabled } from "./lib/sfx";
+import { listenForTaps, play, setSoundsEnabled } from "./lib/sfx";
 
 type SheetId = "rsvp" | "wish" | "calendar" | null;
 
@@ -14,7 +14,8 @@ const music = new MusicBox();
 
 export default function App() {
   const [ready, setReady] = useState(false);
-  const [cover, setCover] = useState<"shown" | "leaving" | "gone">("shown");
+  const [cover, setCover] = useState<CoverState | "gone">("shown");
+  const liftTimer = useRef<number | null>(null);
   const [sheet, setSheet] = useState<SheetId>(null);
   const [saved, setSaved] = useState<SavedRsvp | null>(loadRsvp);
   const [playing, setPlaying] = useState(false);
@@ -38,20 +39,37 @@ export default function App() {
     document.documentElement.toggleAttribute("data-cover", cover !== "gone");
   }, [cover]);
 
-  // Opening the cover is the guest's first tap, which also starts the music (see the gesture listener
-  // below). The hero's entrance runs as the card lifts away, so the guest sees it arrive.
-  const openCover = () => {
-    if (cover !== "shown") return;
+  // The card lifts away with a paper swish, the music comes in, and the hero's entrance runs underneath.
+  const liftCover = () => {
+    if (liftTimer.current !== null) window.clearTimeout(liftTimer.current);
+    liftTimer.current = null;
     setCover("leaving");
     setReady(true);
+    play("paper");
+    music.release();
     window.setTimeout(() => setCover("gone"), prefersReducedMotion() ? 320 : 800);
   };
 
-  // Browsers keep sound locked until the guest taps or presses a key, so the music starts on that first gesture.
+  // Opening the cover is the guest's first tap, and browsers keep all sound locked until one. So the
+  // music starts right here, inside the tap, but held silent while the pen writes (with its sounds);
+  // it comes in as the card lifts. A second tap skips the writing.
+  const openCover = () => {
+    if (cover === "writing") return liftCover();
+    if (cover !== "shown") return;
+    void music.start({ held: true }).then((running) => wantsMusic.current && setPlaying(running));
+    play("seal");
+    setCover("writing");
+    // With reduced motion the names appear at once, so the card only pauses long enough to be read.
+    liftTimer.current = window.setTimeout(liftCover, prefersReducedMotion() ? 900 : COVER_WRITING_MS);
+  };
+
+  // A fallback once the page is open: if the browser still held the music back at the cover's tap,
+  // the guest's next tap or key press starts it.
   useEffect(() => {
+    if (cover !== "gone") return;
     const stopListening = () => GESTURES.forEach((type) => document.removeEventListener(type, onGesture, true));
     function onGesture(event: Event) {
-      if (!wantsMusic.current) return stopListening();
+      if (!wantsMusic.current || playingNow.current) return stopListening();
       // A tap on the music button is handled by the button itself.
       if (event.target instanceof Element && event.target.closest(".tab-music")) return;
       void music.start().then((running) => {
@@ -62,7 +80,7 @@ export default function App() {
     }
     GESTURES.forEach((type) => document.addEventListener(type, onGesture, true));
     return stopListening;
-  }, []);
+  }, [cover]);
 
   // Pause while the tab is hidden; pick up again on return if it was playing.
   useEffect(() => {

@@ -26,17 +26,18 @@ export class MusicBox {
   private active = false;
   /** False once stop() is called, so a start still settling doesn't fade back in. */
   private wanted = false;
-  private pending: Promise<boolean> | null = null;
+  /** Started but kept silent until release(): the cover unlocks the music, the page brings it in. */
+  private held = false;
   private pauseTimer: number | null = null;
 
   /**
    * Call from inside a user gesture (a tap or key press): browsers keep audio locked until one.
    * Resolves true once sound is actually running, false while the browser still holds it back.
-   * Calls made while a start is still settling share its result.
+   * With `held`, the track runs silently until release().
    */
-  start(): Promise<boolean> {
+  start({ held = false }: { held?: boolean } = {}): Promise<boolean> {
     this.wanted = true;
-    if (this.pending) return this.pending;
+    this.held = held;
     playThroughSilentSwitch();
     const { ctx, audio } = (this.graph ??= this.setup());
     unlock(ctx);
@@ -44,25 +45,33 @@ export class MusicBox {
       window.clearTimeout(this.pauseTimer);
       this.pauseTimer = null;
     }
-    // play() must be called inside the gesture on iOS, so it runs on every start, not only the first.
-    this.pending = Promise.all([ctx.resume(), audio.play()])
-      .then(
-        () => ctx.state === "running" && !audio.paused,
-        () => false,
-      )
-      .then((running) => {
-        this.pending = null;
+    // iOS lets play() through only inside a tap, and one touch fires pointerdown (which it refuses)
+    // before touchend (which it allows). So every call tries again instead of waiting on an earlier
+    // attempt that may be failing, and the result is read from the player, whichever attempt won.
+    return Promise.all([ctx.resume(), audio.play()])
+      .catch(() => undefined)
+      .then(() => {
         if (!this.wanted) {
           audio.pause();
           return false;
         }
+        const running = ctx.state === "running" && !audio.paused;
         if (running && !this.active) {
           this.active = true;
-          this.fadeTo(LEVEL, FADE_IN);
+          if (!this.held) this.fadeTo(LEVEL, FADE_IN);
         }
         return running;
       });
-    return this.pending;
+  }
+
+  /** Brings in music started with `held`, from the top of the track. */
+  release(): void {
+    if (!this.held) return;
+    this.held = false;
+    // Still starting: start() fades in when it settles, now that nothing holds it.
+    if (!this.graph || !this.active) return;
+    this.graph.audio.currentTime = 0;
+    this.fadeTo(LEVEL, FADE_IN);
   }
 
   stop(): void {

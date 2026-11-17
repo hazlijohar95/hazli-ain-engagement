@@ -1,4 +1,4 @@
-import { defineSound, type Layer } from "@web-kits/audio";
+import { defineSound, type Layer, type PlayOptions } from "@web-kits/audio";
 
 /**
  * Interface sounds: soft, quiet sine tones built only from C, D, F and G. The background
@@ -45,6 +45,29 @@ const sounds = {
     ],
     effects: [ROOM],
   }),
+  /** Opening the cover: a soft press, like breaking a seal, with a warm bell over it. */
+  seal: defineSound({
+    layers: [
+      { source: { type: "sine", frequency: { start: 220, end: 110 } }, envelope: { attack: 0.003, decay: 0.12 }, gain: 0.12 },
+      { source: { type: "noise", color: "pink" }, filter: { type: "lowpass", frequency: 1800 }, envelope: { attack: 0.001, decay: 0.05 }, gain: 0.05 },
+      ...bell(NOTE.g5, 0.7, 0.06, 0.03),
+    ],
+    effects: [ROOM],
+  }),
+  /** A pen nib on paper: a short scratch of bright filtered noise, one per stroke of a letter. */
+  pen: defineSound({
+    source: { type: "noise", color: "white" },
+    filter: { type: "bandpass", frequency: 3600, resonance: 0.9 },
+    envelope: { attack: 0.018, decay: 0.14 },
+    gain: 0.07,
+  }),
+  /** The card lifting away: a breathy paper swish that brightens as it goes. */
+  paper: defineSound({
+    source: { type: "noise", color: "pink" },
+    filter: { type: "bandpass", frequency: 600, resonance: 0.7, envelope: { attack: 0.2, peak: 2400, decay: 0.45 } },
+    envelope: { attack: 0.12, decay: 0.55 },
+    gain: 0.09,
+  }),
   /** Something to fix: two soft falling notes, a hum rather than a buzzer. */
   error: defineSound({
     layers: [
@@ -65,10 +88,10 @@ export function setSoundsEnabled(on: boolean): void {
   enabled = on;
 }
 
-export function play(name: SoundName): void {
+export function play(name: SoundName, options?: PlayOptions): void {
   if (!enabled || document.hidden) return;
   try {
-    sounds[name]();
+    sounds[name](options);
   } catch {
     // Audio is a nicety: an unavailable or locked AudioContext must never break a tap.
   }

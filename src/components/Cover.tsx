@@ -1,19 +1,27 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { EVENT } from "../event";
 import { prefersReducedMotion } from "../lib/hooks";
+import { play } from "../lib/sfx";
 import { Arrow, HEART } from "./Doodles";
 
 /**
- * The cover the guest opens, like a card out of its envelope. Its tap is also the gesture browsers
- * need before any sound, so every guest hears the music from the first page.
+ * The cover the guest opens, like a sealed card. Browsers keep every sound locked until the first
+ * tap, so the tap comes first: it unlocks the audio, then a pen writes the couple's names letter by
+ * letter (with its scratch), a pink stitch sews in under them, and the card lifts away as the music
+ * comes in.
  *
- * The opening is drawn by hand: a heart sketched in ink and filled, the couple's names written
- * letter by letter with a pen that travels along them, then a pink running stitch underneath.
+ *   shown    the sealed card: a heart sketched in ink, "You're invited", and the button
+ *   writing  after the tap: the names are written and stitched
+ *   leaving  the card lifts off the page
  */
+export type CoverState = "shown" | "writing" | "leaving";
 
-/** When the pen starts writing, in ms after the fonts are ready. Everything else hangs off this. */
-const WRITE_AT = 950;
+/** When the pen starts, after the tap: long enough for the button to clear out of its way. */
+const WRITE_AT = 250;
 const PEN_LEAD = 250;
+const STITCH = 650;
+/** A breath after the stitch, so the guest sees the finished card before it lifts. */
+const ADMIRE = 650;
 
 type Stroke = { char: string; start: number; duration: number };
 
@@ -25,9 +33,9 @@ function strokes(text: string): { letters: Stroke[]; total: number } {
   let t = 0;
   const letters = [...text].map((char, i): Stroke => {
     const wobble = [0, 18, -10, 12, -6, 22, -14, 8][i % 8];
-    const duration = char === " " ? 0 : char === "&" ? 300 : /[mwHA]/.test(char) ? 190 + wobble : /[il]/.test(char) ? 100 + wobble : 150 + wobble;
+    const duration = char === " " ? 0 : char === "&" ? 320 : /[mwHA]/.test(char) ? 200 + wobble : /[il]/.test(char) ? 110 + wobble : 160 + wobble;
     const stroke = { char, start: t, duration };
-    t += char === " " ? 150 : duration + 25;
+    t += char === " " ? 170 : duration + 30;
     return stroke;
   });
   return { letters, total: t };
@@ -35,38 +43,48 @@ function strokes(text: string): { letters: Stroke[]; total: number } {
 
 const NAMES = strokes(EVENT.couple.short);
 
-export function Cover({ state, onOpen }: { state: "shown" | "leaving"; onOpen: () => void }) {
+/** From the tap to the card lifting, when nothing skips ahead and the pen is animated. */
+export const COVER_WRITING_MS = WRITE_AT + NAMES.total + 80 + STITCH + ADMIRE;
+
+export function Cover({ state, onOpen }: { state: CoverState; onOpen: () => void }) {
   const titleId = useId();
-  const [play, setPlay] = useState(false);
+  const [fontsReady, setFontsReady] = useState(false);
   const scriptRef = useRef<HTMLSpanElement>(null);
   const penRef = useRef<SVGSVGElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     buttonRef.current?.focus({ preventScroll: true });
-    // Write only once the handwriting font is in, or the letters would be traced in the fallback and swap.
-    const fontReady = document.fonts.load("500 64px Caveat");
+    // Draw nothing until the handwriting font is in, or the names would be measured in the fallback.
     const timeout = new Promise((resolve) => window.setTimeout(resolve, 1200));
     let cancelled = false;
-    void Promise.race([fontReady, timeout]).then(() => !cancelled && setPlay(true));
+    void Promise.race([document.fonts.load("500 64px Caveat"), timeout]).then(() => !cancelled && setFontsReady(true));
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // The pen follows the letters as they are written: down into each one, up through its middle, out
-  // at its right edge, then lifts away. Measured from the laid-out letters, so it fits any width.
+  // Writing: the pen travels the letters as they appear (down into each one, up through its middle,
+  // out at its right edge) and scratches once per stroke. Measured from the laid-out letters, so it
+  // fits any width. Skipping ahead (a second tap) cancels it all.
   useLayoutEffect(() => {
     const script = scriptRef.current;
     const pen = penRef.current;
-    if (!play || !script || !pen || prefersReducedMotion()) return;
+    if (state !== "writing" || !script || !pen || prefersReducedMotion()) return;
+
+    const scratch = () => play("pen", { jitter: { volume: 0.25, playbackRate: 0.15 } });
+    const timers = NAMES.letters.flatMap(({ char, start, duration }) => {
+      if (char === " ") return [];
+      const at = WRITE_AT + start;
+      // A long letter is two strokes of the pen, so it scratches twice.
+      return duration > 180 ? [window.setTimeout(scratch, at), window.setTimeout(scratch, at + duration * 0.55)] : [window.setTimeout(scratch, at)];
+    });
+
     const box = script.getBoundingClientRect();
-    const spans = [...script.querySelectorAll<HTMLElement>("[data-ink]")];
-    const frames: Keyframe[] = [];
-    // The pen arrives PEN_LEAD before the first letter and lifts away over PEN_LEAD after the last.
     const span = NAMES.total + PEN_LEAD * 2;
     const at = (ms: number) => Math.min(1, (ms + PEN_LEAD) / span);
-    spans.forEach((letter, i) => {
+    const frames: Keyframe[] = [];
+    script.querySelectorAll<HTMLElement>("[data-ink]").forEach((letter, i) => {
       const { start, duration } = NAMES.letters[Number(letter.dataset.ink)];
       const r = letter.getBoundingClientRect();
       const x = r.left - box.left;
@@ -82,26 +100,30 @@ export function Cover({ state, onOpen }: { state: "shown" | "leaving"; onOpen: (
     const last = frames[frames.length - 1]?.transform ?? "none";
     frames.push({ offset: 1, transform: `${last} translate(26px, -34px)`, opacity: 0 });
     frames.unshift({ offset: 0, transform: `${frames[0]?.transform ?? "none"} translate(-18px, -20px)`, opacity: 0 });
-    // Keyframe offsets must rise; letters that share a moment (a space) collapse onto the same offset.
+    // Keyframe offsets must rise; a space puts two frames on the same moment.
     let previous = 0;
     for (const frame of frames) {
       frame.offset = Math.max(previous, typeof frame.offset === "number" ? frame.offset : previous);
       previous = frame.offset;
     }
     const animation = pen.animate(frames, { duration: span, delay: WRITE_AT - PEN_LEAD, easing: "linear", fill: "both" });
-    return () => animation.cancel();
-  }, [play]);
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      animation.cancel();
+    };
+  }, [state]);
 
   return (
     <div
       className="cover"
       data-state={state}
-      data-play={play}
+      data-play={fontsReady}
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
       style={{ "--write-at": `${WRITE_AT}ms`, "--written": `${WRITE_AT + NAMES.total}ms` } as CSSProperties}
-      // A tap anywhere opens it; the button is the same action for keyboards and screen readers.
+      // A tap anywhere opens it, and a second tap skips the writing; the button is the same action
+      // for keyboards and screen readers.
       onClick={onOpen}
     >
       <div className="cover-sheet">
@@ -114,33 +136,56 @@ export function Cover({ state, onOpen }: { state: "shown" | "leaving"; onOpen: (
 
           <p className="tag cover-tag">You're invited</p>
 
-          <h2 className="cover-names" id={titleId}>
-            <span className="visually-hidden">{EVENT.couple.short}</span>
-            <span className="cover-script" ref={scriptRef} aria-hidden="true">
-              {NAMES.letters.map(({ char, start, duration }, i) =>
-                char === " " ? (
-                  <span key={i} className="cover-space" />
-                ) : (
-                  <span
-                    key={i}
-                    className="cover-ink"
-                    data-ink={i}
-                    data-amp={char === "&" || undefined}
-                    style={{ "--t": `${start}ms`, "--d": `${duration}ms` } as CSSProperties}
-                  >
-                    {char}
-                  </span>
-                ),
-              )}
-              {/* A fountain pen held at a writer's slant, its nib at (0, 40): the point that touches the paper. */}
-              <svg className="cover-pen" ref={penRef} viewBox="0 0 34 42" aria-hidden="true">
-                <path d="M0 40L6 27L10.8 30.6Z" fill="var(--ink)" />
-                <path d="M4.8 26.1L12 31.5L31.2 5.9C32.4 4.3 31.6 2.1 29.9 1.1L28.3 0.2C26.8 -0.6 25 -0.1 24 1.2Z" fill="var(--teal)" stroke="var(--ink)" strokeWidth="1.5" strokeLinejoin="round" />
-                <path d="M7.2 22.9L14.4 28.3L16.2 25.9L9 20.5Z" fill="var(--gold-light)" stroke="var(--ink)" strokeWidth="1.2" strokeLinejoin="round" />
-                <path d="M15 17L26 2.6" stroke="var(--on-teal)" strokeWidth="1" strokeLinecap="round" opacity="0.6" />
-              </svg>
-            </span>
-          </h2>
+          {/* The button and the names share one spot: the tap clears the button and the pen writes there. */}
+          <div className="cover-stage">
+            <h2 className="cover-names" id={titleId}>
+              <span className="visually-hidden">{EVENT.couple.short}</span>
+              <span className="cover-script" ref={scriptRef} aria-hidden="true">
+                {NAMES.letters.map(({ char, start, duration }, i) =>
+                  char === " " ? (
+                    <span key={i} className="cover-space" />
+                  ) : (
+                    <span
+                      key={i}
+                      className="cover-ink"
+                      data-ink={i}
+                      data-amp={char === "&" || undefined}
+                      style={{ "--t": `${start}ms`, "--d": `${duration}ms` } as CSSProperties}
+                    >
+                      {char}
+                    </span>
+                  ),
+                )}
+                {/* A fountain pen held at a writer's slant, its nib at (0, 40): the point that touches the paper. */}
+                <svg className="cover-pen" ref={penRef} viewBox="0 0 34 42" aria-hidden="true">
+                  <path d="M0 40L6 27L10.8 30.6Z" fill="var(--ink)" />
+                  <path
+                    d="M4.8 26.1L12 31.5L31.2 5.9C32.4 4.3 31.6 2.1 29.9 1.1L28.3 0.2C26.8 -0.6 25 -0.1 24 1.2Z"
+                    fill="var(--teal)"
+                    stroke="var(--ink)"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                  <path d="M7.2 22.9L14.4 28.3L16.2 25.9L9 20.5Z" fill="var(--gold-light)" stroke="var(--ink)" strokeWidth="1.2" strokeLinejoin="round" />
+                  <path d="M15 17L26 2.6" stroke="var(--on-teal)" strokeWidth="1" strokeLinecap="round" opacity="0.6" />
+                </svg>
+              </span>
+            </h2>
+
+            <button
+              ref={buttonRef}
+              className="btn-brutal cover-open"
+              data-tone="jade"
+              data-sound="none"
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpen();
+              }}
+            >
+              Open invitation
+            </button>
+          </div>
 
           <svg className="cover-stitch" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true">
             <defs>
@@ -151,19 +196,6 @@ export function Cover({ state, onOpen }: { state: "shown" | "leaving"; onOpen: (
             <path className="cover-stitch-thread" d="M6 8C46 4 92 11 130 7C160 4 190 6 214 8" mask={`url(#${titleId}-sew)`} />
           </svg>
 
-          <button
-            ref={buttonRef}
-            className="btn-brutal cover-open"
-            data-tone="jade"
-            data-sound="none"
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpen();
-            }}
-          >
-            Open invitation
-          </button>
           <p className="note cover-note" aria-hidden="true">
             <Arrow className="note-arrow cover-arrow" />
             tap to open
