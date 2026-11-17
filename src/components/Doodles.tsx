@@ -55,8 +55,8 @@ export function Sparkle({ className }: { className: string }) {
 export function Arrow({ className }: { className: string }) {
   return (
     <svg className={className} viewBox="0 0 40 24" aria-hidden="true">
-      <path d="M3 19C10 10 21 5.5 35 7.5" style={{ fill: "none", stroke: "var(--ink)", strokeWidth: 1.8, strokeLinecap: "round" }} />
-      <path d="M29.5 3.2L35.4 7.6L30.6 13" style={{ fill: "none", stroke: "var(--ink)", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" }} />
+      <path pathLength={1} d="M3 19C10 10 21 5.5 35 7.5" style={{ fill: "none", stroke: "var(--ink)", strokeWidth: 1.8, strokeLinecap: "round" }} />
+      <path pathLength={1} d="M29.5 3.2L35.4 7.6L30.6 13" style={{ fill: "none", stroke: "var(--ink)", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" }} />
     </svg>
   );
 }

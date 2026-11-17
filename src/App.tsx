@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { TabBar } from "./components/Chrome";
+import { Cover } from "./components/Cover";
 import { Closing, Details, Hero, Rsvp, Wishes } from "./components/Sections";
 import { CalendarSheet, RsvpSheet, WishSheet } from "./components/Sheets";
-import { loadRsvp, type SavedRsvp } from "./lib/hooks";
+import { loadRsvp, prefersReducedMotion, type SavedRsvp } from "./lib/hooks";
 import { GESTURES, MusicBox } from "./lib/music";
 import { listenForTaps, setSoundsEnabled } from "./lib/sfx";
 
@@ -13,6 +14,7 @@ const music = new MusicBox();
 
 export default function App() {
   const [ready, setReady] = useState(false);
+  const [cover, setCover] = useState<"shown" | "leaving" | "gone">("shown");
   const [sheet, setSheet] = useState<SheetId>(null);
   const [saved, setSaved] = useState<SavedRsvp | null>(loadRsvp);
   const [playing, setPlaying] = useState(false);
@@ -32,11 +34,18 @@ export default function App() {
     document.documentElement.toggleAttribute("data-sheet-open", sheet !== null);
   }, [sheet]);
 
-  // Let the first frame paint, then run the hero's entrance.
   useEffect(() => {
-    const frame = requestAnimationFrame(() => setReady(true));
-    return () => cancelAnimationFrame(frame);
-  }, []);
+    document.documentElement.toggleAttribute("data-cover", cover !== "gone");
+  }, [cover]);
+
+  // Opening the cover is the guest's first tap, which also starts the music (see the gesture listener
+  // below). The hero's entrance runs as the card lifts away, so the guest sees it arrive.
+  const openCover = () => {
+    if (cover !== "shown") return;
+    setCover("leaving");
+    setReady(true);
+    window.setTimeout(() => setCover("gone"), prefersReducedMotion() ? 320 : 800);
+  };
 
   // Browsers keep sound locked until the guest taps or presses a key, so the music starts on that first gesture.
   useEffect(() => {
@@ -87,8 +96,8 @@ export default function App() {
 
   return (
     <>
-      {/* Behind an open sheet the page is out of reach for screen readers and the keyboard alike. */}
-      <div className="app" inert={sheet !== null}>
+      {/* Behind the cover or an open sheet, the page is out of reach for screen readers and the keyboard alike. */}
+      <div className="app" inert={sheet !== null || cover !== "gone"}>
         <main>
           <Hero ready={ready} />
           <Details onCalendar={() => setSheet("calendar")} />
@@ -98,6 +107,7 @@ export default function App() {
         </main>
         <TabBar music={{ playing, onToggle: toggleMusic }} />
       </div>
+      {cover !== "gone" && <Cover state={cover} onOpen={openCover} />}
       <RsvpSheet {...sheetProps("rsvp")} saved={saved} onSaved={setSaved} onAddToCalendar={() => setSheet("calendar")} />
       <WishSheet {...sheetProps("wish")} defaultName={saved?.name} />
       <CalendarSheet {...sheetProps("calendar")} />
