@@ -1,8 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
 import { APPLE_MAPS_URL, EVENT, MAPS_URL } from "../event";
 import { HoopMark } from "../logo/HoopMark";
-import { partySize, useDaysToGo, useReveal, type SavedRsvp } from "../lib/hooks";
-import { Arrow, SketchHeart, Sparkle, Underline } from "./Doodles";
+import { RSVP_BUTTON_ID, partySize, useDaysToGo, useReveal, type SavedRsvp } from "../lib/hooks";
+import { Arrow, SketchHeart, Stitch, Underline } from "./Doodles";
 import { BrandLogo, IconCalendar, IconCheck, IconChevron } from "./Icons";
 import { WishWall } from "./WishWall";
 
@@ -19,12 +19,31 @@ function Thread() {
 
 const stagger = (i: number) => ({ "--i": i }) as CSSProperties;
 
-function Section({ id, eyebrow, title, children }: { id: string; eyebrow?: string; title: string; children: ReactNode }) {
+/** The paths the pink thread takes between one part of the page and the next, on a 200 x 120 board. */
+const SEAMS = [
+  "M100 2C60 22 150 44 110 64C80 80 96 100 100 118",
+  "M100 2C140 20 46 40 88 62C122 80 104 100 100 118",
+  "M100 2C76 26 132 34 120 60C108 84 78 92 100 118",
+] as const;
+
+/**
+ * The thread that runs through the invitation: it leaves each part of the page and leads into the
+ * next, sewing itself in as it scrolls into view.
+ */
+function Seam({ path }: { path: 0 | 1 | 2 }) {
+  const ref = useReveal<HTMLDivElement>();
+  return (
+    <div className="seam" ref={ref}>
+      <Stitch viewBox="0 0 200 120" d={SEAMS[path]} />
+    </div>
+  );
+}
+
+function Section({ id, title, seam, children }: { id: string; title: string; seam: 0 | 1 | 2; children: ReactNode }) {
   const ref = useReveal<HTMLElement>();
   return (
     <section id={id} className="section" ref={ref} aria-labelledby={`${id}-title`}>
-      <SketchHeart className="sec-mark" />
-      {eyebrow && <p className="eyebrow tag">{eyebrow}</p>}
+      <Seam path={seam} />
       <h2 className="section-title" id={`${id}-title`}>
         {title}
         <Underline className="title-underline" />
@@ -42,7 +61,7 @@ export function Hero({ ready }: { ready: boolean }) {
         <div className="hero-mark stagger" style={stagger(0)}>
           <HoopMark size={HERO_MARK} className="monogram" />
         </div>
-        <p className="tag stagger" style={stagger(1)}>
+        <p className="eyebrow stagger" style={stagger(1)}>
           {EVENT.occasion}
         </p>
         <h1 className="names">
@@ -50,7 +69,7 @@ export function Hero({ ready }: { ready: boolean }) {
             <span className="name-given">{first.given}</span>
             <span className="name-lineage">{first.lineage}</span>
           </span>
-          <span className="amp-block stagger" style={stagger(3)}>
+          <span className="amp stagger" style={stagger(3)}>
             &amp;
           </span>
           <span className="name stagger" style={stagger(4)}>
@@ -82,27 +101,23 @@ export function Hero({ ready }: { ready: boolean }) {
 
 function Countdown() {
   const days = useDaysToGo();
-  const ref = useReveal<HTMLDivElement>();
-  const [value, label] =
-    days > 1 ? [String(days), "days to go"] : days === 1 ? ["1", "day to go"] : days === 0 ? ["Today", "is the day"] : ["♡", "with gratitude"];
+  if (days < 0) return null;
   return (
-    <div className="countdown" ref={ref} role="timer" aria-live="off">
-      <Sparkle className="doodle doodle-countdown" />
-      <span className="countdown-num">{value}</span>
-      <p className="countdown-label">{label}</p>
-    </div>
+    <p className="countdown" role="timer" aria-live="off">
+      {days > 1 ? `${days} days to go` : days === 1 ? "1 day to go" : "Today is the day"}
+    </p>
   );
 }
 
 export function Details({ onCalendar }: { onCalendar: () => void }) {
   return (
-    <Section id="details" title="Join us">
-      <Countdown />
+    <Section id="details" title="Join us" seam={0}>
       <div className="ticket">
         <div className="ticket-part">
-          <p className="tag">{EVENT.weekday}</p>
+          <p className="eyebrow">{EVENT.weekday}</p>
           <p className="frame-display">{EVENT.dateDay}</p>
           {EVENT.time && <p className="frame-note">{EVENT.time}</p>}
+          <Countdown />
         </div>
         <div className="ticket-part ticket-tear">
           <p className="frame-venue">
@@ -138,8 +153,8 @@ export function Details({ onCalendar }: { onCalendar: () => void }) {
 
 export function Rsvp({ saved, onOpen }: { saved: SavedRsvp | null; onOpen: () => void }) {
   return (
-    <Section id="rsvp" eyebrow="Kindly respond" title={saved ? "You've replied" : "Will you join us?"}>
-      <div className="brutal-card">
+    <Section id="rsvp" title={saved ? "You've replied" : "Will you join us?"} seam={1}>
+      <div className="reply">
         {saved ? (
           <>
             <span className="brutal-mark">
@@ -161,7 +176,7 @@ export function Rsvp({ saved, onOpen }: { saved: SavedRsvp | null; onOpen: () =>
           </>
         )}
         {/* One button for both states, so focus can come back to it after the guest replies. */}
-        <button className="btn-brutal" data-tone={saved ? undefined : "jade"} type="button" onClick={onOpen}>
+        <button id={RSVP_BUTTON_ID} className="btn-brutal" data-tone={saved ? undefined : "jade"} type="button" onClick={onOpen}>
           {saved ? "Change response" : "RSVP now"}
         </button>
       </div>
@@ -171,7 +186,7 @@ export function Rsvp({ saved, onOpen }: { saved: SavedRsvp | null; onOpen: () =>
 
 export function Wishes({ onWrite }: { onWrite: () => void }) {
   return (
-    <Section id="wishes" eyebrow="Wishes" title="Words of love">
+    <Section id="wishes" title="Words of love" seam={2}>
       <WishWall onWrite={onWrite} />
     </Section>
   );
@@ -184,11 +199,7 @@ export function Closing() {
       <svg className="thread" viewBox="0 0 320 60" aria-hidden="true">
         <path
           d="M10,40 C50,10 80,52 120,30 C150,14 170,16 186,30 C196,40 210,40 218,30"
-          stroke="var(--ink)"
-          strokeWidth={2.5}
-          fill="none"
-          strokeDasharray="7 5"
-          strokeLinecap="square"
+          className="stitch-thread"
         />
         <path
           d="M150,30 C150,22 162,20 162,30 C162,20 174,22 174,30 C174,38 162,44 162,48 C162,44 150,38 150,30Z"
@@ -202,8 +213,6 @@ export function Closing() {
         </g>
       </svg>
       <div className="thanks-card">
-        <Sparkle className="doodle doodle-thanks-a" />
-        <Sparkle className="doodle doodle-thanks-b" />
         <p className="thanks">Thank you</p>
         <p className="signature">
           <span className="visually-hidden">Love, </span>

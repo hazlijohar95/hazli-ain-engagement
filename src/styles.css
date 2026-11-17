@@ -39,24 +39,24 @@
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   /* The hero entrance: each .stagger item waits base + i x step, then fades in over dur. */
-  --enter-base: 120ms;
+  --enter-base: 480ms;
   --enter-step: 100ms;
   --enter-dur: 300ms;
   /* The logo (item 0) has finished fading in: the thread starts sewing. */
   --sew: calc(var(--enter-base) + var(--enter-dur));
-  /* Pages fit one screen at any phone height. Each page has a compact set of sizes that fits a 484px-tall
-     page (an iPhone SE in Safari) and a full set that fits 780px. --grow is one step between them, from
-     the page's real height (the visible screen minus the tab bar): 0 at 484px, 1 at 780px. A size from
-     A to B is clamp(A, calc(A + (B - A) * var(--grow)), B). Both ends fit, so every height between does. */
-  --grow: calc((100svh - var(--tabbar-h) - var(--safe-bottom) - 484px) / 296);
+  /* The first page fits one screen at any phone height. Sizes come in a compact set that fits a 548px-tall
+     screen (an iPhone SE in Safari) and a full set that fits 844px. --grow is one step between them: 0 at
+     548px, 1 at 844px. A size from A to B is clamp(A, calc(A + (B - A) * var(--grow)), B). Both ends fit,
+     so every height between does. The pages after it use the same sizes and simply scroll. */
+  --grow: calc((100svh - var(--safe-bottom) - 548px) / 296);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --col: 480px;
   --gutter: 24px;
-  --tabbar-h: 64px;
-  /* Soft brutalism: ink outlines and hard shadows, but rounded like the hand-drawn illustration. */
+  /* The room the floating buttons take at the foot of the page. */
+  --floating-h: 88px;
+  /* An ink outline and a hard shadow mean "you can press this", and nothing else wears them. */
   --r-md: 14px;
   --r-lg: 20px;
-  /* Neo-brutalist parts (RSVP, wishes, tab bar): ink outline and a solid offset shadow. */
   --edge: 2px solid var(--ink);
   --hard: 5px 5px 0 var(--ink);
   --hard-sm: 3px 3px 0 var(--ink);
@@ -78,19 +78,6 @@ html {
   -webkit-text-size-adjust: 100%;
   overscroll-behavior-y: none;
   background: var(--table);
-  /* Each part of the invitation is one screen; scrolling settles on a whole page, never halfway. */
-  scroll-snap-type: y mandatory;
-}
-
-html[data-sheet-open] {
-  scroll-snap-type: none;
-}
-
-.hero,
-.section,
-.closing {
-  scroll-snap-align: start;
-  min-height: calc(100svh - var(--tabbar-h) - var(--safe-bottom));
 }
 
 body {
@@ -153,7 +140,7 @@ button {
   margin: 0 auto;
   min-height: 100svh;
   background: var(--grain), var(--paper);
-  padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+  padding-bottom: calc(var(--floating-h) + var(--safe-bottom));
 }
 
 @media (min-width: 560px) {
@@ -169,11 +156,9 @@ button {
 .eyebrow {
   font-family: var(--mono);
   font-weight: 500;
-  font-size: 0.75rem;
-  line-height: 16px;
-  letter-spacing: 0.2em;
-  padding-left: 0.2em;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
   color: var(--text-accent);
   text-align: center;
 }
@@ -195,7 +180,7 @@ button {
 
 .hero {
   position: relative;
-  min-height: calc(100svh - var(--tabbar-h) - var(--safe-bottom));
+  min-height: 100svh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -271,7 +256,7 @@ button {
   width: 44px;
   height: 44px;
   color: var(--ink);
-  margin-bottom: 8px;
+  margin-bottom: calc(var(--floating-h) - 24px + var(--safe-bottom));
 }
 
 /* Two nudges once the hero has settled, then still: motion that runs past 5 seconds would need a pause control. */
@@ -354,10 +339,9 @@ button {
 .section {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: stretch;
   gap: clamp(8px, calc(8px + 8 * var(--grow)), 16px);
-  padding: calc(var(--safe-top) + clamp(12px, calc(12px + 16 * var(--grow)), 28px)) var(--gutter) clamp(12px, calc(12px + 16 * var(--grow)), 28px);
+  padding: 0 var(--gutter) clamp(28px, calc(28px + 20 * var(--grow)), 48px);
 }
 
 .section > .section-title {
@@ -399,40 +383,14 @@ button {
 }
 
 .countdown {
-  display: flex;
-  flex-direction: column;
-  align-self: center;
-  min-width: 200px;
-  margin: 0 0 clamp(4px, calc(4px + 18 * var(--grow)), 22px);
-  background: var(--card);
-  border: var(--edge);
-  box-shadow: var(--hard);
-  border-radius: var(--r-md);
-}
-
-.countdown-num {
-  padding: 14px 26px 10px;
-  font-family: var(--display);
-  font-size: 3.75rem;
-  line-height: 1;
-  letter-spacing: -0.03em;
-  text-align: center;
-  color: var(--ink);
-  font-variant-numeric: lining-nums tabular-nums;
-}
-
-.countdown-label {
-  padding: 8px 12px 7px;
-  background: var(--ink);
-  color: var(--pink-soft);
-  font-family: var(--mono);
+  font-family: var(--hand);
   font-weight: 500;
-  font-size: 0.75rem;
-  letter-spacing: 0.2em;
-  text-align: center;
-  text-transform: uppercase;
-  border-radius: 0 0 calc(var(--r-md) - 2px) calc(var(--r-md) - 2px);
+  font-size: 1.375rem;
+  line-height: 1.1;
+  color: var(--pink-ink);
+  rotate: -2deg;
 }
+
 
 .brand {
   display: block;
@@ -467,10 +425,8 @@ button {
 .frame-venue-by {
   margin-top: 6px;
   font-family: var(--mono);
-  font-weight: 500;
-  font-size: 0.75rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
   color: var(--ink-2);
 }
 
@@ -611,9 +567,6 @@ button {
     transform: translate(-2px, -2px);
     box-shadow: 5px 5px 0 var(--ink);
   }
-  .tab:hover {
-    color: var(--teal);
-  }
   .action-row:hover {
     background: rgba(15, 110, 112, 0.06);
   }
@@ -621,26 +574,12 @@ button {
 
 /* ---------- wishes ---------- */
 
-/* Hero, neo-brutalist: ink tag, an "&" block between the names, a date ticket. */
-.amp-block {
-  display: grid;
-  place-items: center;
-  width: clamp(38px, calc(38px + 14 * var(--grow)), 52px);
-  height: clamp(38px, calc(38px + 14 * var(--grow)), 52px);
-  border-radius: 50%;
-  /* Running stitch round the patch, like the embroidery in the logo. */
-  outline: 1.5px dashed var(--pink);
-  outline-offset: -7px;
-  margin: clamp(3px, calc(3px + 5 * var(--grow)), 8px) 0;
-  background: var(--card);
-  border: var(--edge);
-  box-shadow: var(--hard-sm);
+.amp {
+  margin: clamp(2px, calc(2px + 4 * var(--grow)), 6px) 0;
   font-family: var(--display);
-  font-size: clamp(1.125rem, calc(18px + 6 * var(--grow)), 1.5rem);
+  font-size: clamp(1.5rem, calc(24px + 6 * var(--grow)), 1.875rem);
   line-height: 1;
   color: var(--pink-ink);
-  rotate: -6deg;
-  padding-top: 2px;
 }
 
 .divider {
@@ -675,31 +614,22 @@ button {
 .date-block {
   display: flex;
   flex-direction: column;
-  min-width: 232px;
+  gap: clamp(4px, calc(4px + 2 * var(--grow)), 6px);
   margin-top: clamp(5px, calc(5px + 5 * var(--grow)), 10px);
-  background: var(--card);
-  border: var(--edge);
-  box-shadow: var(--hard);
   text-align: center;
-  border-radius: var(--r-lg);
 }
 
 .date-block-day {
-  padding: clamp(4px, calc(4px + 2 * var(--grow)), 6px) 12px clamp(4px, calc(4px + 1 * var(--grow)), 5px);
-  background: var(--ink);
-  color: var(--pink-soft);
   font-family: var(--mono);
   font-weight: 500;
-  font-size: 0.75rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  border-radius: calc(var(--r-lg) - 2px) calc(var(--r-lg) - 2px) 0 0;
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+  color: var(--text-accent);
 }
 
 .date-block-date {
-  padding: clamp(10px, calc(10px + 4 * var(--grow)), 14px) 18px clamp(8px, calc(8px + 2 * var(--grow)), 10px);
   font-family: var(--display);
-  font-size: min(7.5vw, clamp(1.5625rem, calc(25px + 7 * var(--grow)), 2rem));
+  font-size: min(9vw, clamp(1.75rem, calc(28px + 10 * var(--grow)), 2.375rem));
   line-height: 1;
   letter-spacing: 0.01em;
   word-spacing: 0.12em;
@@ -709,81 +639,17 @@ button {
 }
 
 .date-block-venue {
-  padding: clamp(6px, calc(6px + 2 * var(--grow)), 8px) 12px clamp(7px, calc(7px + 2 * var(--grow)), 9px);
-  border-top: 2px solid var(--ink);
   font-family: var(--mono);
-  font-weight: 500;
-  font-size: 0.75rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
   color: var(--ink-2);
 }
 
-/* Below 800px tall the countdown becomes one row ("75 | DAYS TO GO"): the column version is about 90px
-   taller, and only the tallest screens have that to spare next to the ticket. */
-@media (max-height: 799px) {
-  .countdown {
-    flex-direction: row;
-    align-items: stretch;
-    min-width: 0;
-  }
-  .countdown-num {
-    padding: 6px 16px 4px;
-    font-size: 2.5rem;
-  }
-  .countdown-label {
-    display: flex;
-    align-items: center;
-    padding: 8px 14px;
-    border-radius: 0 calc(var(--r-md) - 2px) calc(var(--r-md) - 2px) 0;
-  }
-}
+/* ---------- ticket, thank-you ---------- */
 
-/* The scroll cue is for tall screens (tablets, desktops). On phones the tab bar and the
-   "see you there" arrow already point the way, and the room goes to the content. */
-@media (max-height: 899px) {
-  .scroll-cue {
-    display: none;
-  }
-}
-
-/* ---------- neo-brutalist headings, ticket, thank-you ---------- */
-
-.sec-mark {
-  display: block;
-  align-self: center;
-  width: clamp(26px, calc(26px + 6 * var(--grow)), 32px);
-  height: clamp(24px, calc(24px + 6 * var(--grow)), 30px);
-  margin-bottom: clamp(0px, calc(4 * var(--grow)), 4px);
-  overflow: visible;
-}
-
-.tag {
-  align-self: center;
-  display: inline-block;
-  padding: 4px 14px 3px;
-  background: var(--gold-light);
-  color: var(--ink);
-  font-family: var(--mono);
-  font-weight: 500;
-  font-size: 0.75rem;
-  line-height: 1.4;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  border: var(--edge);
-  border-radius: 999px;
-}
-
-.section > .eyebrow.tag {
-  padding-left: calc(10px + 0.2em);
-}
 
 .ticket {
   position: relative;
-  background: var(--card);
-  border: var(--edge);
-  box-shadow: var(--hard);
-  border-radius: var(--r-lg);
 }
 
 .ticket-part {
@@ -792,35 +658,13 @@ button {
   flex-direction: column;
   align-items: center;
   gap: clamp(4px, calc(4px + 4 * var(--grow)), 8px);
-  padding: clamp(6px, calc(6px + 10 * var(--grow)), 16px) 18px;
+  padding: clamp(12px, calc(12px + 8 * var(--grow)), 20px) 0;
   text-align: center;
 }
 
-/* Perforated tear line with a notch bitten out of each edge, like a ticket stub. */
+/* A line of pink stitching between the parts. */
 .ticket-tear {
-  border-top: 2px dashed var(--ink);
-}
-
-.ticket-tear::before,
-.ticket-tear::after {
-  content: "";
-  position: absolute;
-  top: -13px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--paper);
-  border: var(--edge);
-}
-
-.ticket-tear::before {
-  left: -13px;
-  clip-path: inset(0 0 0 50%);
-}
-
-.ticket-tear::after {
-  right: -13px;
-  clip-path: inset(0 50% 0 0);
+  border-top: 1.5px dashed var(--pink);
 }
 
 .ticket .frame-actions {
@@ -833,26 +677,58 @@ button {
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 34px 20px 0;
-  overflow: hidden;
-  background: var(--pink-soft);
-  border: var(--edge);
-  box-shadow: var(--hard);
-  border-radius: var(--r-lg);
-  position: relative;
 }
 
 .thanks-strip {
-  align-self: stretch;
-  margin: 24px -20px 0;
-  padding: 11px 12px 10px;
-  background: var(--ink);
-  color: var(--pink-soft);
+  margin-top: 14px;
   font-family: var(--mono);
-  font-weight: 500;
-  font-size: 0.75rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}
+
+/* ---------- the thread between pages ---------- */
+
+.seam {
+  align-self: center;
+  width: 200px;
+  height: clamp(84px, calc(84px + 36 * var(--grow)), 120px);
+  margin-bottom: clamp(4px, calc(4px + 8 * var(--grow)), 12px);
+}
+
+.seam svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* The pink running stitch, wherever it appears, and the solid stroke that masks it while it sews in. */
+.stitch-thread {
+  fill: none;
+  stroke: var(--pink);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-dasharray: 7 6;
+}
+
+.stitch-sew {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 8;
+  /* Butt ends: a round cap would show as a dot before the stitch has started. */
+  stroke-linecap: butt;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .seam .stitch-sew {
+    stroke-dasharray: 1 1;
+    stroke-dashoffset: 1;
+    transition: stroke-dashoffset 900ms var(--ease-in-out) 100ms;
+  }
+  .seam[data-in] .stitch-sew {
+    stroke-dashoffset: 0;
+  }
 }
 
 /* ---------- hand-drawn layer ---------- */
@@ -932,10 +808,6 @@ button {
   transform: scaleX(-1) rotate(-18deg);
 }
 
-.date-block {
-  position: relative;
-}
-
 .note-hero {
   align-self: flex-end;
   margin-right: 6%;
@@ -957,37 +829,6 @@ button {
   transform: scaleX(-1) rotate(-48deg);
 }
 
-.doodle {
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  overflow: visible;
-}
-
-.countdown {
-  position: relative;
-}
-
-.doodle-countdown {
-  top: -14px;
-  right: -16px;
-  width: 28px;
-  height: 28px;
-  rotate: 14deg;
-}
-
-.doodle-thanks-a {
-  top: 18px;
-  left: 22px;
-  rotate: -12deg;
-}
-
-.doodle-thanks-b {
-  top: 54px;
-  right: 28px;
-  width: 15px;
-  height: 15px;
-}
 
 .signature {
   font-family: var(--hand);
@@ -998,7 +839,7 @@ button {
   rotate: -3deg;
 }
 
-/* ---------- wishes wall: brutalist ---------- */
+/* ---------- wishes wall ---------- */
 
 .wall {
   display: flex;
@@ -1007,31 +848,18 @@ button {
 }
 
 .wall-count {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 12px;
+  font-size: 0.8125rem;
+  text-align: center;
+  color: var(--ink-2);
 }
 
 .wall-num {
   font-family: var(--display);
-  font-size: 5.5rem;
-  line-height: 0.82;
-  letter-spacing: -0.04em;
+  font-size: 1.375rem;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 
-.wall-cap {
-  padding-bottom: 6px;
-  font-family: var(--mono);
-  font-weight: 500;
-  font-size: 0.75rem;
-  line-height: 1.5;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--text-accent);
-}
 
 .btn-brutal {
   display: inline-flex;
@@ -1075,27 +903,20 @@ button {
   box-shadow: 0 0 0 var(--ink);
 }
 
-.brutal-card {
+.reply {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 28px 22px 24px;
-  background: var(--card);
-  border: var(--edge);
-  box-shadow: var(--hard);
   text-align: center;
-  border-radius: var(--r-lg);
-  outline: 1.5px dashed var(--pink);
-  outline-offset: -10px;
 }
 
-.brutal-card .btn-brutal {
+.reply .btn-brutal {
   align-self: stretch;
   margin-top: 14px;
 }
 
-.brutal-card .frame-lede {
+.reply .frame-lede {
   margin-bottom: 0;
   color: var(--ink);
 }
@@ -1103,35 +924,28 @@ button {
 .brutal-mark {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
-  margin-bottom: 10px;
-  border: var(--edge);
-  box-shadow: var(--hard-sm);
+  width: 48px;
+  height: 48px;
+  margin-bottom: 6px;
   background: var(--teal);
   color: var(--on-teal);
-  border-radius: var(--r-md);
+  border-radius: 50%;
 }
 
 .wall-list {
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  padding: 0 6px 6px 0;
+  gap: 18px;
 }
 
 .wish {
   position: relative;
   padding: 16px 18px 18px;
   background: var(--card);
-  border: var(--edge);
+  border: 1.5px solid var(--ink);
   border-radius: var(--r-md);
-  box-shadow: var(--hard);
   color: var(--ink);
   transform: rotate(var(--tilt, 0deg));
-  transition:
-    transform 160ms var(--ease-out),
-    box-shadow 160ms var(--ease-out);
 }
 
 .wish[data-tone="jade"] {
@@ -1150,12 +964,10 @@ button {
   gap: 12px;
   margin-bottom: 12px;
   padding-bottom: 10px;
-  border-bottom: 1.5px solid currentColor;
+  border-bottom: 1.5px dashed currentColor;
   font-family: var(--mono);
-  font-weight: 500;
-  font-size: 0.75rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
   color: var(--ink-2);
 }
 
@@ -1188,9 +1000,8 @@ button {
   margin-top: 14px;
   font-family: var(--mono);
   font-weight: 500;
-  font-size: 0.75rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
   overflow-wrap: anywhere;
 }
 
@@ -1253,10 +1064,6 @@ button {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .wish:hover {
-    transform: rotate(0deg) translate(-3px, -3px);
-    box-shadow: 8px 8px 0 var(--ink);
-  }
   .btn-brutal:hover {
     transform: translate(-2px, -2px);
     box-shadow: 7px 7px 0 var(--ink);
@@ -1300,13 +1107,12 @@ button {
 
 @keyframes wish-flash {
   from {
-    box-shadow: 9px 9px 0 var(--pink);
+    box-shadow: 6px 6px 0 var(--pink);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wish,
-  .wish:hover {
+  .wish {
     transform: none;
   }
   .btn-brutal:active,
@@ -1325,9 +1131,8 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 10px;
-  padding: calc(var(--safe-top) + 40px) var(--gutter) 40px;
+  padding: 0 var(--gutter) clamp(40px, calc(40px + 24 * var(--grow)), 64px);
   text-align: center;
 }
 
@@ -1345,80 +1150,51 @@ button {
   letter-spacing: -0.02em;
 }
 
-/* ---------- tab bar & music ---------- */
+/* ---------- floating controls ---------- */
 
-.tabbar {
+.floating {
   position: fixed;
   z-index: 20;
   left: 50%;
-  bottom: 0;
+  bottom: calc(16px + var(--safe-bottom));
   transform: translateX(-50%);
   width: 100%;
   max-width: var(--col);
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) 52px;
-  gap: 5px;
-  height: calc(var(--tabbar-h) + var(--safe-bottom));
-  padding: 8px 6px calc(8px + var(--safe-bottom));
-  background: var(--paper);
-  border-top: var(--edge);
-}
-
-.tab {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  border: 2px solid transparent;
-  background: none;
-  color: var(--ink-2);
-  font-family: var(--mono);
-  font-weight: 500;
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  justify-content: flex-end;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 0 calc(var(--gutter) - 4px);
+  pointer-events: none;
+}
+
+.floating > * {
+  pointer-events: auto;
+}
+
+.floating-rsvp {
+  min-height: 56px;
+  padding: 0 22px;
   transition:
-    background-color 150ms var(--ease-out),
-    box-shadow 150ms var(--ease-out),
-    transform 150ms var(--ease-out);
-  border-radius: var(--r-md);
-  container: tab / inline-size;
+    transform 120ms var(--ease-out),
+    box-shadow 120ms var(--ease-out),
+    opacity 200ms var(--ease-out),
+    translate 200ms var(--ease-out);
 }
 
-/* With the reader's text set large, a label no longer fits its tab. The icon stays, and the label stays
-   the button's name for screen readers. 4.6em is the longest label, "Details"; 16px is the padding and
-   border it may spill into. */
-@container tab (width < calc(4.6em - 16px)) {
-  .tab span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
+.floating-rsvp[data-away] {
+  opacity: 0;
+  translate: 0 12px;
+  pointer-events: none;
 }
 
-.tab svg {
-  transition: transform 160ms var(--ease-out);
-}
-
-.tab:active svg {
-  transform: scale(0.96);
-}
-
-.tab[aria-current="true"] {
-  color: var(--ink);
-  background: var(--pink-soft);
-  border-color: var(--ink);
-  box-shadow: var(--hard-sm);
-}
-
-.tab-music {
+.music-toggle {
   position: relative;
+  flex: none;
   display: grid;
   place-items: center;
+  width: 56px;
+  height: 56px;
   border: var(--edge);
   background: var(--card);
   color: var(--ink);
@@ -1441,8 +1217,8 @@ button {
     filter 300ms var(--ease-out);
 }
 
-.tab-music[aria-pressed="true"] .music-icon[data-on="false"],
-.tab-music[aria-pressed="false"] .music-icon[data-on="true"] {
+.music-toggle[aria-pressed="true"] .music-icon[data-on="false"],
+.music-toggle[aria-pressed="false"] .music-icon[data-on="true"] {
   opacity: 0;
   scale: 0.25;
   filter: blur(4px);
@@ -1452,24 +1228,23 @@ button {
   .music-icon {
     transition: opacity 200ms linear;
   }
-  .tab-music .music-icon {
+  .music-toggle .music-icon {
     scale: 1;
     filter: none;
   }
 }
 
-.tab-music[aria-pressed="true"] {
-  background: var(--teal);
-  color: var(--on-teal);
+.music-toggle[aria-pressed="true"] {
+  background: var(--pink-soft);
 }
 
-.tab-music:active svg {
+.music-toggle:active svg {
   transform: scale(0.96);
 }
 
 .eq {
   position: absolute;
-  bottom: 4px;
+  bottom: 6px;
   display: flex;
   gap: 2px;
   height: 5px;
@@ -1480,7 +1255,7 @@ button {
   width: 2px;
   height: 100%;
   border-radius: 1px;
-  background: var(--gold-2);
+  background: var(--pink-ink);
   animation: eq 900ms ease-in-out infinite alternate;
 }
 
@@ -1556,12 +1331,6 @@ button {
   margin-bottom: 24px;
 }
 
-.sheet-mark {
-  display: block;
-  width: 30px;
-  height: 28px;
-  overflow: visible;
-}
 
 /* The sheet's underline draws itself in as the sheet rises. */
 .sheet .underline-stroke,
@@ -1612,18 +1381,10 @@ button {
 }
 
 .optional {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 8px 0;
-  border: 1.5px solid var(--ink-3);
-  border-radius: 999px;
+  margin-left: 4px;
   font-family: var(--mono);
-  font-weight: 500;
-  font-size: 0.75rem;
-  line-height: 1.5;
-  vertical-align: 2px;
+  font-size: 0.8125rem;
   color: var(--ink-3);
-  white-space: nowrap;
 }
 
 .field-hint {
@@ -2265,7 +2026,7 @@ html[data-cover] {
 }
 
 .cover-tag {
-  margin-top: 22px;
+  margin-top: 18px;
 }
 
 .cover-stage {
@@ -2324,22 +2085,6 @@ html[data-cover] {
   overflow: visible;
 }
 
-.cover-stitch-thread {
-  fill: none;
-  stroke: var(--pink);
-  stroke-width: 2.4;
-  stroke-linecap: round;
-  stroke-dasharray: 7 6;
-}
-
-.cover-stitch-sew {
-  fill: none;
-  stroke: #fff;
-  stroke-width: 8;
-  /* Butt ends: a round cap would show as a dot before the stitch has started. */
-  stroke-linecap: butt;
-}
-
 .cover-open {
   justify-self: stretch;
 }
@@ -2355,10 +2100,30 @@ html[data-cover] {
   transform: rotate(-70deg);
 }
 
+/* While the pen writes, a quiet line at the foot of the card says a second tap moves on. */
+.cover-skip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--safe-bottom) + 28px);
+  font-size: 0.8125rem;
+  text-align: center;
+  color: var(--ink-3);
+  opacity: 0;
+}
+
+/* With reduced motion the card is only up for a moment, so there is nothing to skip. */
+@media (prefers-reduced-motion: no-preference) {
+  .cover[data-state="writing"] .cover-skip {
+    opacity: 1;
+    transition: opacity 300ms var(--ease-out) 700ms;
+  }
+}
+
 /* The tap comes first (it is what lets sound play), so the sealed card is all that greets the guest:
    the heart is sketched and filled, "You're invited" arrives, then the button and a doodled arrow.
    After the tap the button clears, the names are written letter by letter where it stood, and a
-   running stitch sews in under them. Nothing starts until the handwriting font is in ([data-play]). */
+   running stitch sews in under them. */
 .cover[data-state="shown"] .cover-script,
 .cover[data-state="shown"] .cover-stitch {
   opacity: 0;
@@ -2385,32 +2150,32 @@ html[data-cover] {
   .cover-ink {
     clip-path: inset(-30% 100% -30% 0);
   }
-  .cover-stitch-sew,
+  .cover-stitch .stitch-sew,
   .cover-arrow path {
     stroke-dasharray: 1 1;
     stroke-dashoffset: 1;
   }
 
   /* The sealed card. */
-  .cover[data-play="true"] .cover-heart-line {
+  .cover .cover-heart-line {
     animation: cover-draw 850ms cubic-bezier(0.45, 0, 0.25, 1) 150ms forwards;
   }
-  .cover[data-play="true"] .cover-heart-fill {
+  .cover .cover-heart-fill {
     animation: cover-fill 350ms var(--ease-out) 820ms forwards;
   }
-  .cover[data-play="true"] .cover-heart-shadow {
+  .cover .cover-heart-shadow {
     animation: cover-fill 250ms var(--ease-out) 900ms forwards;
   }
-  .cover[data-play="true"] .cover-tag {
+  .cover .cover-tag {
     animation: cover-rise 400ms var(--ease-out) 600ms both;
   }
-  .cover[data-play="true"][data-state="shown"] .cover-open {
+  .cover[data-state="shown"] .cover-open {
     animation: cover-pop 450ms var(--ease-out) 1000ms both;
   }
-  .cover[data-play="true"][data-state="shown"] .cover-note {
+  .cover[data-state="shown"] .cover-note {
     animation: cover-fill 1ms linear 1350ms forwards;
   }
-  .cover[data-play="true"] .cover-arrow path {
+  .cover .cover-arrow path {
     animation: cover-draw 450ms var(--ease-out) 1350ms forwards;
   }
 
@@ -2421,7 +2186,7 @@ html[data-cover] {
   .cover:not([data-state="shown"]) .cover-ink {
     animation: cover-write var(--d) cubic-bezier(0.35, 0, 0.45, 1) calc(var(--write-at) + var(--t)) forwards;
   }
-  .cover:not([data-state="shown"]) .cover-stitch-sew {
+  .cover:not([data-state="shown"]) .cover-stitch .stitch-sew {
     animation: cover-draw 650ms var(--ease-out) calc(var(--written) + 80ms) forwards;
   }
 
@@ -2522,8 +2287,7 @@ html[data-cover] {
   }
   .btn:active:not(:disabled),
   .frame-action:active,
-  .tab:active svg,
-  .tab-music:active svg,
+  .music-toggle:active svg,
   .wall-more:active,
   .choice-item:active,
   .stepper-btn:active:not(:disabled),

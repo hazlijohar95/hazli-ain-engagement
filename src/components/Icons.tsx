@@ -2,8 +2,6 @@ import {
   ArrowDown01Icon,
   ArrowUpRight01Icon,
   Calendar03Icon,
-  Diamond02Icon,
-  FavouriteIcon,
   MailLove01Icon,
   MinusSignIcon,
   MusicNote01Icon,
@@ -21,10 +19,8 @@ function icon(svg: IconSvgElement, defaultSize = 22) {
   };
 }
 
-export const IconInvite = icon(Diamond02Icon);
 export const IconCalendar = icon(Calendar03Icon);
 export const IconLetter = icon(MailLove01Icon);
-export const IconHeart = icon(FavouriteIcon);
 export const IconCheck = icon(Tick02Icon);
 export const IconMinus = icon(MinusSignIcon);
 export const IconPlus = icon(PlusSignIcon);

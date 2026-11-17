@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 /**
  * Hand-drawn marks that make the neo-brutalist parts feel human: slightly uneven paths,
  * a second pen pass where a person would go over a line twice. All decorative (aria-hidden).
@@ -25,6 +27,24 @@ export function SketchHeart({ className, empty = false }: { className: string; e
   );
 }
 
+/**
+ * A line of pink running stitch that can sew itself in: the thread is masked by a solid stroke along
+ * the same path, and drawing the mask in reveals the stitches one after another.
+ */
+export function Stitch({ className, viewBox, d, stretch = false }: { className?: string; viewBox: string; d: string; stretch?: boolean }) {
+  const id = useId();
+  return (
+    <svg className={className} viewBox={viewBox} preserveAspectRatio={stretch ? "none" : undefined} aria-hidden="true">
+      <defs>
+        <mask id={id} maskUnits="userSpaceOnUse">
+          <path className="stitch-sew" d={d} pathLength={1} />
+        </mask>
+      </defs>
+      <path className="stitch-thread" d={d} mask={`url(#${id})`} />
+    </svg>
+  );
+}
+
 /** A brush-pen underline that draws itself in when its section arrives. */
 export function Underline({ className }: { className: string }) {
   return (
@@ -38,18 +58,6 @@ export function Underline({ className }: { className: string }) {
 /** A freehand four-point sparkle (24 x 24 box), also drawn into the logo. */
 export const SPARKLE =
   "M12 2.5C12.6 8.4 14.1 10.6 21.5 12C14.3 13.2 12.7 15.5 12 21.5C11.2 15.6 9.6 13.3 2.5 12.1C9.8 10.7 11.3 8.6 12 2.5Z";
-
-/** A four-point sparkle, drawn freehand. */
-export function Sparkle({ className }: { className: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d={SPARKLE}
-        style={{ fill: "var(--gold-light)", stroke: "var(--ink)", strokeWidth: 1.6, strokeLinejoin: "round" }}
-      />
-    </svg>
-  );
-}
 
 /** A loose hand-drawn arrow; point it with CSS rotate. */
 export function Arrow({ className }: { className: string }) {

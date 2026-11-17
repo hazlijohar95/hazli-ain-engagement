@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { EVENT, INVITERS, type Inviter } from "../event";
 
+/** The RSVP button in the page itself, which is there whether or not the guest has replied. */
+export const RSVP_BUTTON_ID = "rsvp-button";
+
 export const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Adds `data-in` to an element once it scrolls into view, for the CSS entrance animation. */

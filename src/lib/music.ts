@@ -13,7 +13,10 @@ import { getMasterBus } from "@web-kits/audio";
 const SRC = "/music/binks-sake.mp3";
 /** The cut averages -20.9 dB; this sits it at about -24 dB, calm under the page and above the button sounds. */
 const LEVEL = 0.7;
-const FADE_IN = 2.5;
+/** From the top the track swells in by itself, so the fade only has to hide the click of starting. */
+const FADE_FROM_TOP = 0.4;
+/** Picking up mid-phrase (the music button, coming back to the tab) eases in. */
+const FADE_RESUME = 2.5;
 const FADE_OUT = 0.6;
 
 /** The events that count as a user gesture for unlocking audio (pointerdown only counts for a mouse). */
@@ -29,6 +32,16 @@ export class MusicBox {
   /** Started but kept silent until release(): the cover unlocks the music, the page brings it in. */
   private held = false;
   private pauseTimer: number | null = null;
+  /** The player was paused by something other than stop(), and has not been started again since. */
+  private pausedOutside = false;
+  /** Removes the listeners that restart the music on the next gesture after an interruption. */
+  private disarm: (() => void) | null = null;
+
+  /**
+   * Called when something other than this page's own controls stops or restarts the music: the
+   * phone's Control Center, a headset button, a call taking the audio.
+   */
+  onExternalChange: ((playing: boolean) => void) | null = null;
 
   /**
    * Call from inside a user gesture (a tap or key press): browsers keep audio locked until one.
@@ -38,6 +51,7 @@ export class MusicBox {
   start({ held = false }: { held?: boolean } = {}): Promise<boolean> {
     this.wanted = true;
     this.held = held;
+    this.pausedOutside = false;
     playThroughSilentSwitch();
     const { ctx, audio } = (this.graph ??= this.setup());
     unlock(ctx);
@@ -58,7 +72,7 @@ export class MusicBox {
         const running = ctx.state === "running" && !audio.paused;
         if (running && !this.active) {
           this.active = true;
-          if (!this.held) this.fadeTo(LEVEL, FADE_IN);
+          if (!this.held) this.fadeTo(LEVEL, audio.currentTime < 1 ? FADE_FROM_TOP : FADE_RESUME);
         }
         return running;
       });
@@ -71,16 +85,27 @@ export class MusicBox {
     // Still starting: start() fades in when it settles, now that nothing holds it.
     if (!this.graph || !this.active) return;
     this.graph.audio.currentTime = 0;
-    this.fadeTo(LEVEL, FADE_IN);
+    this.fadeTo(LEVEL, FADE_FROM_TOP);
   }
 
-  stop(): void {
+  /**
+   * Fades out, then pauses. With `now` it pauses at once: a page going into the background may never
+   * get to run the timer that ends a fade.
+   */
+  stop({ now = false }: { now?: boolean } = {}): void {
     this.wanted = false;
     silentAudio?.pause();
     if (!this.graph || !this.active) return;
     this.active = false;
+    const { ctx, audio, gain } = this.graph;
+    if (now) {
+      gain.gain.cancelScheduledValues(ctx.currentTime);
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      audio.pause();
+      void ctx.suspend();
+      return;
+    }
     this.fadeTo(0, FADE_OUT);
-    const { ctx, audio } = this.graph;
     this.pauseTimer = window.setTimeout(() => {
       this.pauseTimer = null;
       if (this.active) return;
@@ -108,14 +133,40 @@ export class MusicBox {
     const gain = ctx.createGain();
     gain.gain.value = 0;
     ctx.createMediaElementSource(audio).connect(gain).connect(ctx.destination);
-    // iOS suspends ("interrupts") the context for calls, Siri or switching apps. Start again on the next gesture.
-    ctx.addEventListener("statechange", () => {
-      if (!this.active || ctx.state === "running") return;
+    // stop() clears `active` before it pauses, so a pause that finds it set came from outside the page.
+    audio.addEventListener("pause", () => {
+      if (!this.active) return;
       this.active = false;
+      this.pausedOutside = true;
+      gain.gain.cancelScheduledValues(ctx.currentTime);
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      this.onExternalChange?.(false);
+    });
+    // start() sets `wanted` and clears `pausedOutside` before it plays, so a play that finds the music
+    // unwanted or paused from outside was pressed somewhere else (Control Center, a headset).
+    audio.addEventListener("play", () => {
+      if (this.wanted && !this.pausedOutside) return;
+      void this.start().then((running) => running && this.onExternalChange?.(true));
+    });
+    // iOS suspends ("interrupts") the context for calls, Siri or switching apps, and pauses the player
+    // too, in either order. Whichever comes first, start again on the next gesture.
+    ctx.addEventListener("statechange", () => {
+      if (ctx.state === "running" || this.disarm) return;
+      if (!this.active && !this.pausedOutside) return;
+      if (this.active) {
+        this.active = false;
+        this.onExternalChange?.(false);
+      }
       const retry = () => {
         void this.start().then((running) => {
-          if (running) GESTURES.forEach((type) => document.removeEventListener(type, retry, true));
+          if (!running) return;
+          this.disarm?.();
+          this.onExternalChange?.(true);
         });
+      };
+      this.disarm = () => {
+        GESTURES.forEach((type) => document.removeEventListener(type, retry, true));
+        this.disarm = null;
       };
       GESTURES.forEach((type) => document.addEventListener(type, retry, true));
     });

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { TabBar } from "./components/Chrome";
-import { COVER_WRITING_MS, Cover, type CoverState } from "./components/Cover";
+import { FloatingControls } from "./components/Chrome";
+import { COVER_STITCH_MS, COVER_WRITING_MS, Cover, type CoverState } from "./components/Cover";
 import { Closing, Details, Hero, Rsvp, Wishes } from "./components/Sections";
 import { CalendarSheet, RsvpSheet, WishSheet } from "./components/Sheets";
 import { loadRsvp, prefersReducedMotion, type SavedRsvp } from "./lib/hooks";
@@ -15,7 +15,7 @@ const music = new MusicBox();
 export default function App() {
   const [ready, setReady] = useState(false);
   const [cover, setCover] = useState<CoverState | "gone">("shown");
-  const liftTimer = useRef<number | null>(null);
+  const coverTimers = useRef<number[]>([]);
   const [sheet, setSheet] = useState<SheetId>(null);
   const [saved, setSaved] = useState<SavedRsvp | null>(loadRsvp);
   const [playing, setPlaying] = useState(false);
@@ -29,20 +29,28 @@ export default function App() {
 
   useEffect(listenForTaps, []);
 
-  // While a sheet is open the page behind must hold still: snapping would fight the phone scrolling a
-  // focused field into view above the keyboard.
   useEffect(() => {
-    document.documentElement.toggleAttribute("data-sheet-open", sheet !== null);
-  }, [sheet]);
+    // Paused or started from outside the page: the button, the interface sounds and the wish to have
+    // music all follow, exactly as if the guest had pressed the button.
+    music.onExternalChange = (on) => {
+      wantsMusic.current = on;
+      setSoundsEnabled(on);
+      setPlaying(on);
+    };
+    return () => {
+      music.onExternalChange = null;
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.toggleAttribute("data-cover", cover !== "gone");
   }, [cover]);
 
-  // The card lifts away with a paper swish, the music comes in, and the hero's entrance runs underneath.
+  // The card lifts away with a paper swish and the hero's entrance follows it up the page. The music
+  // is already in unless the guest skipped ahead.
   const liftCover = () => {
-    if (liftTimer.current !== null) window.clearTimeout(liftTimer.current);
-    liftTimer.current = null;
+    coverTimers.current.forEach((timer) => window.clearTimeout(timer));
+    coverTimers.current = [];
     setCover("leaving");
     setReady(true);
     play("paper");
@@ -52,15 +60,21 @@ export default function App() {
 
   // Opening the cover is the guest's first tap, and browsers keep all sound locked until one. So the
   // music starts right here, inside the tap, but held silent while the pen writes (with its sounds);
-  // it comes in as the card lifts. A second tap skips the writing.
+  // it comes in as the stitch sews under the names, so its first phrase lands as the card lifts.
+  // A second tap skips the writing, and a guest who has already replied goes straight in.
   const openCover = () => {
     if (cover === "writing") return liftCover();
     if (cover !== "shown") return;
     void music.start({ held: true }).then((running) => wantsMusic.current && setPlaying(running));
     play("seal");
+    if (saved) return liftCover();
     setCover("writing");
     // With reduced motion the names appear at once, so the card only pauses long enough to be read.
-    liftTimer.current = window.setTimeout(liftCover, prefersReducedMotion() ? 900 : COVER_WRITING_MS);
+    const reduced = prefersReducedMotion();
+    coverTimers.current = [
+      window.setTimeout(() => music.release(), reduced ? 900 : COVER_STITCH_MS),
+      window.setTimeout(liftCover, reduced ? 900 : COVER_WRITING_MS),
+    ];
   };
 
   // A fallback once the page is open: if the browser still held the music back at the cover's tap,
@@ -71,7 +85,7 @@ export default function App() {
     function onGesture(event: Event) {
       if (!wantsMusic.current || playingNow.current) return stopListening();
       // A tap on the music button is handled by the button itself.
-      if (event.target instanceof Element && event.target.closest(".tab-music")) return;
+      if (event.target instanceof Element && event.target.closest(".music-toggle")) return;
       void music.start().then((running) => {
         if (!running || !wantsMusic.current) return;
         stopListening();
@@ -87,7 +101,7 @@ export default function App() {
     const onVisibility = () => {
       if (document.hidden) {
         resumeOnShow.current = playingNow.current;
-        music.stop();
+        music.stop({ now: true });
         setPlaying(false);
       } else if (resumeOnShow.current && wantsMusic.current) {
         void music.start().then(setPlaying);
@@ -123,7 +137,7 @@ export default function App() {
           <Wishes onWrite={() => setSheet("wish")} />
           <Closing />
         </main>
-        <TabBar music={{ playing, onToggle: toggleMusic }} />
+        <FloatingControls music={{ playing, onToggle: toggleMusic }} rsvp={saved ? null : () => setSheet("rsvp")} />
       </div>
       {cover !== "gone" && <Cover state={cover} onOpen={openCover} />}
       <RsvpSheet {...sheetProps("rsvp")} saved={saved} onSaved={setSaved} onAddToCalendar={() => setSheet("calendar")} />

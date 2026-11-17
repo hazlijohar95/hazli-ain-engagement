@@ -1,8 +1,8 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, type CSSProperties } from "react";
 import { EVENT } from "../event";
 import { prefersReducedMotion } from "../lib/hooks";
 import { play } from "../lib/sfx";
-import { Arrow, HEART } from "./Doodles";
+import { Arrow, HEART, Stitch } from "./Doodles";
 
 /**
  * The cover the guest opens, like a sealed card. Browsers keep every sound locked until the first
@@ -42,26 +42,24 @@ function strokes(text: string): { letters: Stroke[]; total: number } {
 }
 
 const NAMES = strokes(EVENT.couple.short);
+/** The names' font, as the page's font loader names it. */
+const HAND_FONT = "500 64px Caveat";
 
+/** From the tap to the stitch starting under the finished names. */
+export const COVER_STITCH_MS = WRITE_AT + NAMES.total + 80;
 /** From the tap to the card lifting, when nothing skips ahead and the pen is animated. */
-export const COVER_WRITING_MS = WRITE_AT + NAMES.total + 80 + STITCH + ADMIRE;
+export const COVER_WRITING_MS = COVER_STITCH_MS + STITCH + ADMIRE;
 
 export function Cover({ state, onOpen }: { state: CoverState; onOpen: () => void }) {
   const titleId = useId();
-  const [fontsReady, setFontsReady] = useState(false);
   const scriptRef = useRef<HTMLSpanElement>(null);
   const penRef = useRef<SVGSVGElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     buttonRef.current?.focus({ preventScroll: true });
-    // Draw nothing until the handwriting font is in, or the names would be measured in the fallback.
-    const timeout = new Promise((resolve) => window.setTimeout(resolve, 1200));
-    let cancelled = false;
-    void Promise.race([document.fonts.load("500 64px Caveat"), timeout]).then(() => !cancelled && setFontsReady(true));
-    return () => {
-      cancelled = true;
-    };
+    // The names are measured when the guest taps; asking for the handwriting font now has it in by then.
+    void document.fonts.load(HAND_FONT).catch(() => undefined);
   }, []);
 
   // Writing: the pen travels the letters as they appear (down into each one, up through its middle,
@@ -71,6 +69,7 @@ export function Cover({ state, onOpen }: { state: CoverState; onOpen: () => void
     const script = scriptRef.current;
     const pen = penRef.current;
     if (state !== "writing" || !script || !pen || prefersReducedMotion()) return;
+    const clearTimers = () => timers.forEach((timer) => window.clearTimeout(timer));
 
     const scratch = () => play("pen", { jitter: { volume: 0.25, playbackRate: 0.15 } });
     const timers = NAMES.letters.flatMap(({ char, start, duration }) => {
@@ -79,6 +78,10 @@ export function Cover({ state, onOpen }: { state: CoverState; onOpen: () => void
       // A long letter is two strokes of the pen, so it scratches twice.
       return duration > 180 ? [window.setTimeout(scratch, at), window.setTimeout(scratch, at + duration * 0.55)] : [window.setTimeout(scratch, at)];
     });
+
+    // A guest who taps before the handwriting font is in gets the writing without the pen: its path
+    // would be measured on the fallback letters and drift off the ink once the font arrives.
+    if (!document.fonts.check(HAND_FONT)) return clearTimers;
 
     const box = script.getBoundingClientRect();
     const span = NAMES.total + PEN_LEAD * 2;
@@ -108,7 +111,7 @@ export function Cover({ state, onOpen }: { state: CoverState; onOpen: () => void
     }
     const animation = pen.animate(frames, { duration: span, delay: WRITE_AT - PEN_LEAD, easing: "linear", fill: "both" });
     return () => {
-      timers.forEach((timer) => window.clearTimeout(timer));
+      clearTimers();
       animation.cancel();
     };
   }, [state]);
@@ -117,7 +120,6 @@ export function Cover({ state, onOpen }: { state: CoverState; onOpen: () => void
     <div
       className="cover"
       data-state={state}
-      data-play={fontsReady}
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -134,7 +136,7 @@ export function Cover({ state, onOpen }: { state: CoverState; onOpen: () => void
             <path className="cover-heart-line" d={HEART} transform="translate(2 2)" pathLength={1} />
           </svg>
 
-          <p className="tag cover-tag">You're invited</p>
+          <p className="eyebrow cover-tag">You're invited</p>
 
           {/* The button and the names share one spot: the tap clears the button and the pen writes there. */}
           <div className="cover-stage">
@@ -187,18 +189,14 @@ export function Cover({ state, onOpen }: { state: CoverState; onOpen: () => void
             </button>
           </div>
 
-          <svg className="cover-stitch" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true">
-            <defs>
-              <mask id={`${titleId}-sew`} maskUnits="userSpaceOnUse">
-                <path className="cover-stitch-sew" d="M6 8C46 4 92 11 130 7C160 4 190 6 214 8" pathLength={1} />
-              </mask>
-            </defs>
-            <path className="cover-stitch-thread" d="M6 8C46 4 92 11 130 7C160 4 190 6 214 8" mask={`url(#${titleId}-sew)`} />
-          </svg>
+          <Stitch className="cover-stitch" viewBox="0 0 220 14" d="M6 8C46 4 92 11 130 7C160 4 190 6 214 8" stretch />
 
           <p className="note cover-note" aria-hidden="true">
             <Arrow className="note-arrow cover-arrow" />
             tap to open
+          </p>
+          <p className="cover-skip" aria-hidden="true">
+            tap again to skip
           </p>
         </div>
       </div>

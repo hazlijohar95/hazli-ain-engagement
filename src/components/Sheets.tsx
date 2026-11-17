@@ -5,7 +5,7 @@ import { api } from "../../convex/_generated/api";
 import { PHONE_MESSAGE, emptyMessage, phoneDigits } from "../../convex/limits";
 import { EVENT, INVITERS, MAX_GUESTS, type Inviter } from "../event";
 import { googleCalendarUrl, outlookCalendarUrl } from "../lib/calendar";
-import { errorMessage, partySize, saveRsvp, type SavedRsvp } from "../lib/hooks";
+import { RSVP_BUTTON_ID, errorMessage, partySize, saveRsvp, type SavedRsvp } from "../lib/hooks";
 import { play } from "../lib/sfx";
 import { SketchHeart, Underline } from "./Doodles";
 import { BrandLogo, IconArrow, IconCalendar, IconCheck, IconMinus, IconPlus, type Brand } from "./Icons";
@@ -60,16 +60,18 @@ function Sheet({
             contentRef.current?.focus({ preventScroll: true });
           }}
           // The sheets open from state, not a Drawer.Trigger, so vaul has no trigger to hand focus back to.
+          // An opener that has left the page (the floating RSVP button, once the guest has replied)
+          // hands over to the page's own RSVP button.
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            returnTo.current?.focus({ preventScroll: true });
+            const opener = returnTo.current?.isConnected ? returnTo.current : document.getElementById(RSVP_BUTTON_ID);
+            opener?.focus({ preventScroll: true });
           }}
         >
           <Drawer.Handle className="sheet-handle" />
           <div className="sheet-scroll">
             <header className="sheet-head">
-              <SketchHeart className="sheet-mark" />
-              <p className="tag">{eyebrow}</p>
+              <p className="eyebrow">{eyebrow}</p>
               <Drawer.Title className="sheet-title">
                 {title}
                 <Underline className="title-underline" />
@@ -433,7 +435,7 @@ export function RsvpSheet({
                 </div>
                 <label className="field dietary">
                   <span className="field-label">
-                    Any dietary needs or allergies? <span className="optional">optional</span>
+                    Any dietary needs or allergies? <span className="optional">(optional)</span>
                   </span>
                   <textarea
                     ref={dietaryRef}
@@ -459,7 +461,7 @@ export function RsvpSheet({
 
           <label className="field">
             <span className="field-label">
-              Do you have a wish for the couple? <span className="optional">optional</span>
+              Do you have a wish for the couple? <span className="optional">(optional)</span>
             </span>
             <textarea
               ref={wishRef}

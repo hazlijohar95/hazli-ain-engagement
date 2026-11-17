@@ -5,6 +5,8 @@ import { Arrow } from "./Doodles";
 import { IconQuill } from "./Icons";
 
 const PREVIEW_COUNT = 6;
+/** The running total only shows once it has something to boast about. */
+const COUNT_FROM = 10;
 /** Cards cycle through three papers and lean like notes pinned to a board. */
 const TONES = ["paper", "jade", "paper", "pink", "paper", "pink"] as const;
 const TILTS = [-1.1, 0.8, -0.5, 1.2, -0.8, 0.4];
@@ -66,14 +68,11 @@ export function WishWall({ onWrite }: { onWrite: () => void }) {
 
   return (
     <div className="wall">
-      <div className="wall-count" aria-live="polite">
-        <span className="wall-num">{pad(count)}</span>
-        <span className="wall-cap">
-          {count === 1 ? "wish" : "wishes"}
-          <br />
-          &amp; counting
-        </span>
-      </div>
+      {/* Always in the page so a new wish is announced; only shown once the total is worth showing. */}
+      <p className={count >= COUNT_FROM ? "wall-count" : "visually-hidden"} aria-live="polite">
+        <span className="wall-num">{count}</span> {count === 1 ? "wish" : "wishes"}
+        {count >= COUNT_FROM && " and counting"}
+      </p>
 
       <div className="wall-cta">
         <button className="btn-brutal" type="button" onClick={onWrite}>
