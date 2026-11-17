@@ -151,12 +151,6 @@ export function Cover({ state, onOpen }: { state: "shown" | "leaving"; onOpen: (
             <path className="cover-stitch-thread" d="M6 8C46 4 92 11 130 7C160 4 190 6 214 8" mask={`url(#${titleId}-sew)`} />
           </svg>
 
-          <p className="cover-when">
-            {EVENT.dateLong}
-            <br />
-            {EVENT.venue.label}
-          </p>
-
           <button
             ref={buttonRef}
             className="btn-brutal cover-open"
@@ -172,7 +166,7 @@ export function Cover({ state, onOpen }: { state: "shown" | "leaving"; onOpen: (
           </button>
           <p className="note cover-note" aria-hidden="true">
             <Arrow className="note-arrow cover-arrow" />
-            tap to open, music on ♪
+            tap to open
           </p>
         </div>
       </div>
