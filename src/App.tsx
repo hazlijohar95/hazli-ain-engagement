@@ -87,7 +87,8 @@ export default function App() {
 
   return (
     <>
-      <div className="app">
+      {/* Behind an open sheet the page is out of reach for screen readers and the keyboard alike. */}
+      <div className="app" inert={sheet !== null}>
         <main>
           <Hero ready={ready} />
           <Details onCalendar={() => setSheet("calendar")} />
@@ -98,7 +99,7 @@ export default function App() {
         <TabBar music={{ playing, onToggle: toggleMusic }} />
       </div>
       <RsvpSheet {...sheetProps("rsvp")} saved={saved} onSaved={setSaved} onAddToCalendar={() => setSheet("calendar")} />
-      <WishSheet {...sheetProps("wish")} />
+      <WishSheet {...sheetProps("wish")} defaultName={saved?.name} />
       <CalendarSheet {...sheetProps("calendar")} />
     </>
   );

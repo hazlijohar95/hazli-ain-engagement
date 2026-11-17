@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation } from "./_generated/server";
-import { attendance } from "./schema";
+import { attendance, inviter } from "./schema";
 import { LIMITS, cleanText, normalisePhone, optionalText } from "./limits";
 
 /** One response per phone number: resubmitting updates the earlier answer instead of double-counting. */
@@ -9,6 +9,8 @@ export const submit = mutation({
     name: v.string(),
     phone: v.string(),
     attending: attendance,
+    // The form always asks. Optional here so a page opened before the question existed can still reply.
+    invitedBy: v.optional(inviter),
     guests: v.number(),
     dietary: v.optional(v.string()),
   },
@@ -21,7 +23,7 @@ export const submit = mutation({
     }
 
     const dietary = args.attending === "yes" ? optionalText(args.dietary, "dietary note", LIMITS.dietary) : undefined;
-    const row = { name, phone, attending: args.attending, guests, dietary, updatedAt: Date.now() };
+    const row = { name, phone, attending: args.attending, invitedBy: args.invitedBy, guests, dietary, updatedAt: Date.now() };
     const existing = await ctx.db
       .query("rsvps")
       .withIndex("by_phone", (q) => q.eq("phone", phone))

@@ -1,4 +1,5 @@
 import { ConvexError, v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 
 // Convex provides process.env at runtime; declared here so the browser build (which imports these types) needs no Node typings.
@@ -19,6 +20,8 @@ export const overview = query({
     rsvps.sort((a, b) => b.updatedAt - a.updatedAt);
 
     const attending = rsvps.filter((r) => r.attending === "yes");
+    const guestsFrom = (side: Doc<"rsvps">["invitedBy"]) =>
+      attending.filter((r) => r.invitedBy === side).reduce((sum, r) => sum + r.guests, 0);
     return {
       totals: {
         responses: rsvps.length,
@@ -26,6 +29,7 @@ export const overview = query({
         declined: rsvps.length - attending.length,
         guests: attending.reduce((sum, r) => sum + r.guests, 0),
         dietary: attending.filter((r) => r.dietary).length,
+        bySide: { hazli: guestsFrom("hazli"), ain: guestsFrom("ain"), both: guestsFrom("both"), unknown: guestsFrom(undefined) },
       },
       rsvps,
       wishes,

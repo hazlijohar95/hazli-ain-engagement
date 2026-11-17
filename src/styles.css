@@ -27,6 +27,8 @@
   --ink-3: #776453;
   --pink: #d9668e;
   --pink-soft: #f7dce5;
+  /* Pink for text: passes 4.5:1 on card. --pink stays for hearts, stitching and other marks. */
+  --pink-ink: #bc4c75;
   /* Light text and marks on teal or ink fills. */
   --on-teal: #fff8e8;
   --danger: #a33a3a;
@@ -485,10 +487,11 @@ button {
   display: flex;
   flex-direction: column;
   margin-bottom: 18px;
-  /* Two lines, always: the size scales down on narrow phones instead of wrapping to a third. */
+  /* Two lines on any phone: the size scales down on narrow screens instead of wrapping to a third.
+     With the reader's text set larger, the lines wrap rather than run off the card. */
   font-size: clamp(0.75rem, 3.8vw, 0.9375rem);
   line-height: 1.7;
-  white-space: nowrap;
+  text-wrap: balance;
   color: var(--ink-2);
 }
 
@@ -634,7 +637,7 @@ button {
   font-family: var(--display);
   font-size: clamp(1.125rem, calc(18px + 6 * var(--grow)), 1.5rem);
   line-height: 1;
-  color: var(--pink);
+  color: var(--pink-ink);
   rotate: -6deg;
   padding-top: 2px;
 }
@@ -1379,6 +1382,21 @@ button {
     box-shadow 150ms var(--ease-out),
     transform 150ms var(--ease-out);
   border-radius: var(--r-md);
+  container: tab / inline-size;
+}
+
+/* With the reader's text set large, a label no longer fits its tab. The icon stays, and the label stays
+   the button's name for screen readers. 4.6em is the longest label, "Details"; 16px is the padding and
+   border it may spill into. */
+@container tab (width < calc(4.6em - 16px)) {
+  .tab span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 .tab svg {
@@ -1640,6 +1658,24 @@ button {
   box-shadow: 4px 4px 0 var(--teal);
 }
 
+/* A field in trouble keeps a danger edge, with its message under it, until the guest edits it. */
+.input[aria-invalid="true"],
+.choice[aria-invalid="true"] .choice-item,
+.chips[aria-invalid="true"] .chip,
+.stepper[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.input[aria-invalid="true"]:focus {
+  box-shadow: 4px 4px 0 var(--danger);
+}
+
+.field-error {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--danger);
+}
+
 .textarea {
   resize: none;
   line-height: 1.45;
@@ -1733,6 +1769,61 @@ button {
   background: var(--pink-soft);
   box-shadow: var(--hard-sm);
   transform: translate(-2px, -2px);
+}
+
+/* "Who invited you?": one short answer each, in a row, picked like the Coming / Not coming cards. */
+.chips {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.chip {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  padding: 8px;
+  border: var(--edge);
+  border-radius: var(--r-md);
+  background: var(--card);
+  font-family: var(--display);
+  font-size: 1.0625rem;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition:
+    box-shadow 160ms var(--ease-out),
+    background-color 160ms var(--ease-out),
+    transform 150ms var(--ease-out);
+}
+
+.chip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chip:has(input:focus-visible) {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.chip[data-checked="true"] {
+  background: var(--pink-soft);
+  box-shadow: var(--hard-sm);
+  transform: translate(-2px, -2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip[data-checked="true"] {
+    transform: none;
+  }
 }
 
 .reveal-row {
@@ -2048,7 +2139,7 @@ button {
   color: var(--ink-2);
 }
 
-.seg button[aria-selected="true"] {
+.seg button[aria-pressed="true"] {
   background: var(--card);
   color: var(--teal-deep);
   box-shadow: 0 2px 8px -4px rgba(60, 40, 20, 0.3);

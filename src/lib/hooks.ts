@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { EVENT } from "../event";
+import { EVENT, INVITERS, type Inviter } from "../event";
 
 export const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -44,13 +44,21 @@ export function useDaysToGo(): number {
 }
 
 /** Per-device memory of this guest's RSVP, so a returning guest sees their answer. Never authoritative. */
-export type SavedRsvp = { name: string; phone: string; attending: "yes" | "no"; guests: number; dietary?: string };
+export type SavedRsvp = {
+  name: string;
+  phone: string;
+  attending: "yes" | "no";
+  /** Missing from responses saved on this device before the form asked. */
+  invitedBy?: Inviter;
+  guests: number;
+  dietary?: string;
+};
 const RSVP_KEY = "hazli-ain:rsvp";
 
 function isSavedRsvp(v: unknown): v is SavedRsvp {
   if (typeof v !== "object" || v === null) return false;
   const r = v as Record<string, unknown>;
-  return typeof r.name === "string" && typeof r.phone === "string" && (r.attending === "yes" || r.attending === "no") && typeof r.guests === "number" && (r.dietary === undefined || typeof r.dietary === "string");
+  return typeof r.name === "string" && typeof r.phone === "string" && (r.attending === "yes" || r.attending === "no") && typeof r.guests === "number" && (r.dietary === undefined || typeof r.dietary === "string") && (r.invitedBy === undefined || INVITERS.some((i) => i.value === r.invitedBy));
 }
 
 export function loadRsvp(): SavedRsvp | null {
@@ -70,6 +78,11 @@ export function saveRsvp(rsvp: SavedRsvp): void {
   } catch {
     /* private mode: the confirmation still shows for this visit */
   }
+}
+
+/** How many are coming, in the words the form asks with: "How many people, including you?" */
+export function partySize(people: number): string {
+  return people === 1 ? "Just you" : `${people} people`;
 }
 
 export function errorMessage(err: unknown): string {

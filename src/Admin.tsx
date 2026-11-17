@@ -3,6 +3,7 @@ import { Component, useState, type FormEvent, type ReactNode } from "react";
 import { errorMessage } from "./lib/hooks";
 import { api } from "../convex/_generated/api";
 import type { Doc } from "../convex/_generated/dataModel";
+import { inviterLabel } from "./event";
 import { HoopMark } from "./logo/HoopMark";
 
 const KEY = "hazli-ain:admin";
@@ -18,11 +19,11 @@ function readKey(): string {
 function csv(rows: Doc<"rsvps">[]): string {
   const cell = (v: string | number) => `"${String(v).replaceAll('"', '""')}"`;
   const lines = rows.map((r) =>
-    [r.name, `+${r.phone}`, r.attending === "yes" ? "Attending" : "Declined", r.guests, r.dietary ?? "", new Date(r.updatedAt).toISOString()]
+    [r.name, `+${r.phone}`, r.attending === "yes" ? "Attending" : "Declined", r.invitedBy ? inviterLabel(r.invitedBy) : "", r.guests, r.dietary ?? "", new Date(r.updatedAt).toISOString()]
       .map(cell)
       .join(","),
   );
-  return ["Name,Phone,Status,Guests,Dietary,Updated", ...lines].join("\n");
+  return ["Name,Phone,Status,Invited by,Guests,Dietary,Updated", ...lines].join("\n");
 }
 
 function download(text: string) {
@@ -48,6 +49,10 @@ function Dashboard({ adminKey, onSignOut }: { adminKey: string; onSignOut: () =>
         {(
           [
             ["Guests coming", totals.guests],
+            [`${inviterLabel("hazli")}'s guests`, totals.bySide.hazli],
+            [`${inviterLabel("ain")}'s guests`, totals.bySide.ain],
+            ["Both", totals.bySide.both],
+            ...(totals.bySide.unknown > 0 ? [["Not asked", totals.bySide.unknown] as const] : []),
             ["Attending", totals.attending],
             ["Declined", totals.declined],
             ["Responses", totals.responses],
@@ -61,11 +66,11 @@ function Dashboard({ adminKey, onSignOut }: { adminKey: string; onSignOut: () =>
         ))}
       </div>
 
-      <div className="seg" role="tablist">
-        <button role="tab" type="button" aria-selected={tab === "rsvps"} onClick={() => setTab("rsvps")}>
+      <div className="seg" role="group" aria-label="Show">
+        <button type="button" aria-pressed={tab === "rsvps"} onClick={() => setTab("rsvps")}>
           RSVPs
         </button>
-        <button role="tab" type="button" aria-selected={tab === "wishes"} onClick={() => setTab("wishes")}>
+        <button type="button" aria-pressed={tab === "wishes"} onClick={() => setTab("wishes")}>
           Wishes ({wishes.length})
         </button>
       </div>
@@ -80,6 +85,7 @@ function Dashboard({ adminKey, onSignOut }: { adminKey: string; onSignOut: () =>
                   <a className="admin-sub" href={`https://wa.me/${r.phone}`} target="_blank" rel="noreferrer">
                     +{r.phone}
                   </a>
+                  {r.invitedBy && <p className="admin-diet">Invited by {inviterLabel(r.invitedBy)}</p>}
                   {r.dietary && <p className="admin-diet">Dietary: {r.dietary}</p>}
                 </div>
                 <span className="pill" data-yes={r.attending === "yes"}>

@@ -1,3 +1,8 @@
+import type { Infer } from "convex/values";
+import type { inviter } from "../convex/schema";
+
+export type Inviter = Infer<typeof inviter>;
+
 /** Every fact the invitation shows lives here. Edit this file, nothing else, to change wording. */
 export const EVENT = {
   couple: {
@@ -30,3 +35,12 @@ export const EVENT = {
 export const MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(EVENT.venue.mapsQuery)}`;
 export const APPLE_MAPS_URL = `https://maps.apple.com/?q=${encodeURIComponent(EVENT.venue.full)}&address=${encodeURIComponent(EVENT.venue.address.join(", "))}`;
 export const MAX_GUESTS = 6;
+
+/** The answers to "Who invited you?", in the order the form shows them. */
+export const INVITERS = [
+  { value: "hazli", label: EVENT.couple.first.short },
+  { value: "ain", label: EVENT.couple.second.short },
+  { value: "both", label: "Both" },
+] as const satisfies readonly { value: Inviter; label: string }[];
+
+export const inviterLabel = (value: Inviter) => INVITERS.find((i) => i.value === value)?.label ?? value;

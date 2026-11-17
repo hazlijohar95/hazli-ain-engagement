@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { APPLE_MAPS_URL, EVENT, MAPS_URL } from "../event";
 import { HoopMark } from "../logo/HoopMark";
-import { useDaysToGo, useReveal, type SavedRsvp } from "../lib/hooks";
+import { partySize, useDaysToGo, useReveal, type SavedRsvp } from "../lib/hooks";
 import { Arrow, SketchHeart, Sparkle, Underline } from "./Doodles";
 import { BrandLogo, IconCalendar, IconCheck, IconChevron } from "./Icons";
 import { WishWall } from "./WishWall";
@@ -50,7 +50,7 @@ export function Hero({ ready }: { ready: boolean }) {
             <span className="name-given">{first.given}</span>
             <span className="name-lineage">{first.lineage}</span>
           </span>
-          <span className="amp-block stagger" style={stagger(3)} aria-label="and">
+          <span className="amp-block stagger" style={stagger(3)}>
             &amp;
           </span>
           <span className="name stagger" style={stagger(4)}>
@@ -148,11 +148,8 @@ export function Rsvp({ saved, onOpen }: { saved: SavedRsvp | null; onOpen: () =>
             <p className="frame-display">{saved.attending === "yes" ? "Coming" : "Not coming"}</p>
             <p className="frame-note">
               {saved.name}
-              {saved.attending === "yes" && ` · ${saved.guests === 1 ? "1 guest" : `${saved.guests} guests`}`}
+              {saved.attending === "yes" && ` · ${partySize(saved.guests)}`}
             </p>
-            <button className="btn-brutal" type="button" onClick={onOpen}>
-              Change response
-            </button>
           </>
         ) : (
           <>
@@ -161,11 +158,12 @@ export function Rsvp({ saved, onOpen }: { saved: SavedRsvp | null; onOpen: () =>
               <span>Kindly let us know below.</span>
             </p>
             {EVENT.rsvpBy && <p className="frame-note">Kindly reply by {EVENT.rsvpBy}</p>}
-            <button className="btn-brutal" data-tone="jade" type="button" onClick={onOpen}>
-              RSVP now
-            </button>
           </>
         )}
+        {/* One button for both states, so focus can come back to it after the guest replies. */}
+        <button className="btn-brutal" data-tone={saved ? undefined : "jade"} type="button" onClick={onOpen}>
+          {saved ? "Change response" : "RSVP now"}
+        </button>
       </div>
     </Section>
   );
